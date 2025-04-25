@@ -1,0 +1,186 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  user_id      Int             @id @default(autoincrement())
+  name         String          @db.VarChar(100)
+  email        String          @unique
+  password     String          @db.VarChar(255)
+  telephone    String?         @db.VarChar(13)
+  nik          String?         @db.VarChar(255)
+  address      String?         @db.VarChar(255)
+  createdAt    DateTime        @default(now())
+  updatedAt    DateTime        @default(now()) @updatedAt
+  User_Roles   User_Roles[]
+  ownedRooms   Room[]          @relation("RoomOwner")
+  rentedRoom   Room?           @relation("RoomTenant")
+  payments     Payment[]       @relation("UserPayments")
+  transactions Transaction[]   @relation("AdminTransactions")
+  report       ProblemReport[]
+}
+
+model Roles {
+  roles_id   Int          @id @default(autoincrement())
+  roles_name String       @unique
+  User_Roles User_Roles[]
+}
+
+model User_Roles {
+  user_roles_id Int   @id @default(autoincrement())
+  user_id       Int
+  roles_id      Int
+  User          User  @relation(fields: [user_id], references: [user_id])
+  Role          Roles @relation(fields: [roles_id], references: [roles_id])
+
+  @@unique([user_id, roles_id])
+}
+
+model Room {
+  room_id      Int          @id @default(autoincrement())
+  room_number  String       @db.VarChar(20)
+  price        Decimal      @db.Decimal(10, 2)
+  status       RoomStatus
+  description  String?
+  bathroomType BathroomType
+
+  owner_id       Int
+  owner          User           @relation("RoomOwner", fields: [owner_id], references: [user_id])
+  owner_name     String?
+  tenant_id      Int?           @unique
+  tenant         User?          @relation("RoomTenant", fields: [tenant_id], references: [user_id])
+  is_deleted     Boolean        @default(false)
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @default(now()) @updatedAt
+  locked_at      DateTime?
+  payments       Payment[]      @relation("RoomPayments")
+  roomFacilities RoomFacility[]
+}
+
+enum RoomStatus {
+  TERSEDIA
+  TERSEWA
+  TERKUNCI
+  PERBAIKAN
+  TIDAK_TERSEDIA
+}
+
+enum BathroomType {
+  INDOOR
+  OUTDOOR
+}
+
+model Payment {
+  payment_id            Int           @id @default(autoincrement())
+  user_id               Int
+  room_id               Int
+  amount                Decimal       @db.Decimal(15, 2)
+  payment_date          DateTime
+  payment_method        String        @db.VarChar(50)
+  midtrans_order_id     String?       @unique @db.VarChar(100)
+  midtrans_token        String?       @db.VarChar(255)
+  midtrans_redirect_url String?       @db.Text
+  status                PaymentStatus @default(PENDING)
+  description           String?       @db.Text
+  settlementTime        DateTime?
+  start_rent            DateTime?
+  end_rent              DateTime?
+  createdAt             DateTime      @default(now())
+  updatedAt             DateTime      @default(now()) @updatedAt
+
+  user User @relation("UserPayments", fields: [user_id], references: [user_id])
+  room Room @relation("RoomPayments", fields: [room_id], references: [room_id])
+
+  transactions Transaction[] @relation("PaymentTransactions")
+}
+
+enum PaymentStatus {
+  PENDING
+  PAID
+  CANCELLED
+  EXPIRED
+  FAILED
+  REFUNDED
+  CHALLENGE
+}
+
+model Transaction {
+  transaction_id   Int             @id @default(autoincrement())
+  admin_id         Int
+  payment_id       Int?
+  amount           Decimal         @db.Decimal(15, 2)
+  type             TransactionType
+  category         String          @db.VarChar(100)
+  description      String?         @db.Text
+  transaction_date DateTime
+  createdAt        DateTime        @default(now())
+  updatedAt        DateTime        @default(now()) @updatedAt
+  admin            User            @relation("AdminTransactions", fields: [admin_id], references: [user_id])
+  payment          Payment?        @relation("PaymentTransactions", fields: [payment_id], references: [payment_id])
+}
+
+enum TransactionType {
+  PEMASUKAN
+  PENGELUARAN
+}
+
+model Facility {
+  facility_id     Int            @id @default(autoincrement())
+  facilities_name String
+  roomFacilities  RoomFacility[]
+}
+
+model RoomFacility {
+  id Int @id @default(autoincrement())
+
+  room   Room @relation(fields: [roomId], references: [room_id])
+  roomId Int  @map("room_id")
+
+  facility   Facility @relation(fields: [facilityId], references: [facility_id])
+  facilityId Int      @map("facility_id")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @default(now()) @updatedAt
+
+  @@unique([roomId, facilityId])
+  @@map("room_facilities")
+}
+
+model ProblemReport {
+  id          Int             @id @default(autoincrement())
+  filename    String?
+  description String
+  category    CategoryProblem
+  status      ProblemStatus
+  user_id     Int
+  owner       User            @relation(fields: [user_id], references: [user_id])
+  owner_name  String?
+  room_number String?
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @default(now()) @updatedAt
+
+  @@map("problem_report")
+}
+
+enum CategoryProblem {
+  KERUSAKAN
+  KEBERSIHAN
+  KEAMANAN
+  LAINNYA
+}
+
+enum ProblemStatus {
+  DONE
+  PENDING
+}
