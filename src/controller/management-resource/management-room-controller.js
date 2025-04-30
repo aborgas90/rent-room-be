@@ -4,6 +4,7 @@ const {
   getByIdRoom,
   updateRoom,
   deleteRoom,
+  getAllRoomPublic,
 } = require("../../services/management-resource/room-management-service");
 
 const handleCreateRoom = async (req, res, next) => {
@@ -66,6 +67,32 @@ const handleGetAllRoom = async (req, res, next) => {
   }
 };
 
+const handleGetAllRoomPublic = async (req, res, next) => {
+  try {
+    // Ambil page dan limit dari query params, kasih default kalau ga ada
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 10;
+
+    // Hitung offset buat skip data
+    const offset = (page - 1) * limit;
+
+    // Panggil service yang udah support pagination
+    const { rooms, total } = await getAllRoomPublic({ limit, offset });
+
+    res.status(200).json({
+      status: true,
+      message: "Get All Room Successfully",
+      data: rooms,
+      totalData: total,
+      currentPage: page,
+      totalPages: Math.ceil(total / limit),
+    });
+  } catch (error) {
+    console.error("Error handleGetAllRoom: ", error);
+    next(error);
+  }
+};
+
 const handleGetIdRoom = async (req, res, next) => {
   const { id } = req.params;
   const parseRoomId = parseInt(id, 10);
@@ -96,8 +123,8 @@ const handleGetIdRoom = async (req, res, next) => {
   }
 };
 
-const handleUpdateRoom = async(req, res, next) => {
-  const {id} = req.params
+const handleUpdateRoom = async (req, res, next) => {
+  const { id } = req.params;
   const {
     room_number,
     price,
@@ -106,11 +133,11 @@ const handleUpdateRoom = async(req, res, next) => {
     facilities = [], // default array kosong kalau gak ada
     bathType,
     owner_id,
-    tenant_id
+    tenant_id,
   } = req.body;
   try {
     const update = await updateRoom({
-      room_id: Number(id),  // pastiin ID bentuk number
+      room_id: Number(id), // pastiin ID bentuk number
       room_number,
       price,
       status,
@@ -118,28 +145,27 @@ const handleUpdateRoom = async(req, res, next) => {
       facilities,
       bathType,
       owner_id,
-      tenant_id
+      tenant_id,
     });
-    
+
     res.status(200).json({
       status: true,
       message: "Update Successfull",
-      data: update
-    })
+      data: update,
+    });
   } catch (error) {
-    console.error("error handleUpdateRoom", error)
-    next(error)
+    console.error("error handleUpdateRoom", error);
+    next(error);
   }
-}
-
+};
 
 const handleDeleteRoom = async (req, res, next) => {
   const { id } = req.params;
-  console.log(id)
+  console.log(id);
 
   try {
     const deleted = await deleteRoom({ room_id: parseInt(id) });
-    console.log(deleted)
+    console.log(deleted);
 
     res.status(200).json({
       status: true,
@@ -157,5 +183,6 @@ module.exports = {
   handleGetAllRoom,
   handleGetIdRoom,
   handleUpdateRoom,
-  handleDeleteRoom
+  handleDeleteRoom,
+  handleGetAllRoomPublic,
 };

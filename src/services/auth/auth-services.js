@@ -54,7 +54,6 @@ const authentication = async ({ email, password }) => {
 
     console.log("Token created at login:", token);
 
-
     // Jangan kirim password ke response!
     delete User.password;
 
@@ -81,7 +80,14 @@ const logout = async ({ email }) => {
   }
 };
 
-const createUser = async ({ user_id, name, email, password, telephone, address }) => {
+const createUser = async ({
+  user_id,
+  name,
+  email,
+  password,
+  telephone,
+  address,
+}) => {
   try {
     const passwordHash = await bcrypt.hash(password, 10);
     const createUser = await prismaClient.user.create({
@@ -96,11 +102,11 @@ const createUser = async ({ user_id, name, email, password, telephone, address }
     });
 
     await prismaClient.user_Roles.create({
-      data : {
-        user_id : createUser.user_id,
-        roles_id: 2
-      }
-    })
+      data: {
+        user_id: createUser.user_id,
+        roles_id: 4,
+      },
+    });
 
     return createUser;
   } catch (error) {

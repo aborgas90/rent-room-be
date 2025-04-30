@@ -109,6 +109,46 @@ const getAllRoom = async ({ offset, limit }) => {
   }
 };
 
+
+const getAllRoomPublic = async ({ offset, limit }) => {
+  try {
+    const total = await prismaClient.room.count();
+
+    const roomsData = await prismaClient.room.findMany({
+      skip: offset,
+      take: limit,
+      include: {
+        roomFacilities: {
+          include: {
+            facility: true,
+          },
+        },
+        owner: {
+          select: {
+            user_id: true,
+            name: true,
+          },
+        },
+      },
+    });
+
+    const rooms = roomsData.map((room) => {
+      const facilities = room.roomFacilities.map((rf) => rf.facility);
+      const { roomFacilities, ...restRoom } = room;
+
+      return {
+        ...restRoom,
+        facilities,
+      };
+    });
+
+    return { rooms, total };
+  } catch (error) {
+    console.log("Error get all data room :", error);
+    throw error;
+  }
+};
+
 const getByIdRoom = async ({ room_id }) => {
   try {
     const roomData = await prismaClient.room.findUnique({
@@ -228,4 +268,5 @@ module.exports = {
   getByIdRoom,
   updateRoom,
   deleteRoom,
+  getAllRoomPublic
 };
