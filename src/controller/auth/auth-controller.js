@@ -60,7 +60,7 @@ const handleLogin = async (req, res, next) => {
     const { token, User } = await authentication({ email, password });
 
     res.cookie("token", token, {
-      httpOnly: true,
+      httpOnly: false,
       sameSite: "Lax", // or 'Strict' if needed
       secure: false, // true if using HTTPS
       maxAge: 60 * 60 * 1000, // 1 hour
@@ -80,12 +80,18 @@ const handleLogin = async (req, res, next) => {
 };
 
 const handleLogout = (req, res) => {
-  res.clearCookie('token');
-  res.status(200).json({ message: 'Logged out successfully' });
+  res.clearCookie("token", {
+    httpOnly: false,
+    sameSite: "Lax",
+    secure: false,
+    path: "/",
+  });
+
+  res.status(200).json({ message: "Logged out successfully" });
 };
 
 module.exports = {
   handleRegister,
   handleLogin,
-  handleLogout
+  handleLogout,
 };

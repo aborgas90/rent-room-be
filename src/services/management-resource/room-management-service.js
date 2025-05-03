@@ -87,7 +87,14 @@ const getAllRoom = async ({ offset, limit }) => {
             name: true,
           },
         },
-        tenant: true,
+        tenant: {
+          select: {
+            user_id: true,
+            name: true,
+            email: true,
+            telephone: true,
+          },
+        },
         payments: true,
       },
     });
@@ -108,7 +115,6 @@ const getAllRoom = async ({ offset, limit }) => {
     throw error;
   }
 };
-
 
 const getAllRoomPublic = async ({ offset, limit }) => {
   try {
@@ -262,11 +268,22 @@ const deleteRoom = async ({ room_id }) => {
   }
 };
 
+const getAllfacities = async () => {
+  try {
+    const facilities = await prismaClient.facility.findMany();
+    return facilities;
+  } catch (error) {
+    console.error("Error get all data facilities :", error);
+    throw error;
+  }
+};
+
 module.exports = {
   createRoom,
   getAllRoom,
   getByIdRoom,
   updateRoom,
   deleteRoom,
-  getAllRoomPublic
+  getAllRoomPublic,
+  getAllfacities
 };

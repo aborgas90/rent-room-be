@@ -7,10 +7,11 @@ const {
   deleteAdmin,
   updateAdmin,
   findIdUser,
-  findAllDataUser,
+  findAllDataUserMember,
   createUser,
   updateUser,
   deleteUser,
+  findAllUsersQuery,
 } = require("../../services/management-resource/user-management-service");
 
 const handleFindIdUser = async (req, res, next) => {
@@ -36,7 +37,7 @@ const handleFindIdUser = async (req, res, next) => {
   }
 };
 
-const handleGetAllDataUser = async (req, res, next) => {
+const handleGetAllDataUserMember = async (req, res, next) => {
   try {
     const { roles } = req.user;
     console.log(roles);
@@ -48,11 +49,48 @@ const handleGetAllDataUser = async (req, res, next) => {
       });
     }
 
-    const admin = await findAllDataUser();
+    const admin = await findAllDataUserMember();
 
     return res.status(200).json({
       message: "Successfull",
       data: admin,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+const handleGetAllUsersQuery = async (req, res, next) => {
+  try {
+    const { roles: userRoles } = req.user;
+    const { role: filterRole } = req.query;
+
+    // Permission check
+    if (userRoles !== "super_admin" && userRoles !== "admin") {
+      return res.status(403).json({
+        status: false,
+        message: "Forbidden. You don't have permission to access this data.",
+      });
+    }
+
+    const users = await findAllUsersQuery(filterRole);
+
+    if (users.length === 0) {
+      return res.status(200).json({
+        status: true,
+        message: filterRole
+          ? `No users found with role '${filterRole}'`
+          : "No users found",
+        data: [],
+      });
+    }
+
+    return res.status(200).json({
+      status: true,
+      message: filterRole
+        ? `Successfully retrieved users with role '${filterRole}'`
+        : "Successfully retrieved all users",
+      data: users,
     });
   } catch (error) {
     next(error);
@@ -139,8 +177,8 @@ const handleDeleteUser = async (req, res, next) => {
       });
     }
     const user = await deleteUser({ id: parsedId });
-    return res.status(204).json({
-      message: "Delete Admin Successfull",
+    return res.status(200).json({
+      message: "Delete User Successfull",
       data: user,
     });
   } catch (error) {
@@ -277,7 +315,7 @@ const handleDeleteAdmin = async (req, res, next) => {
 
 module.exports = {
   handleFindIdUser,
-  handleGetAllDataUser,
+  handleGetAllDataUserMember,
   handleCreateUser,
   handleUpdateUser,
   handleDeleteUser,
@@ -286,4 +324,5 @@ module.exports = {
   handleCreateAdmin,
   handleDeleteAdmin,
   handleUpdateAdmin,
+  handleGetAllUsersQuery,
 };

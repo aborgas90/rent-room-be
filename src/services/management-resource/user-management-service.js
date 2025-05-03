@@ -219,7 +219,63 @@ const findIdUser = async ({ id }) => {
   }
 };
 
-const findAllDataUser = async () => {
+const findAllUsersQuery = async (roleFilter) => {
+  try {
+    // Build the where clause conditionally
+    const whereClause = roleFilter
+      ? {
+          User_Roles: {
+            some: {
+              Role: {
+                roles_name: roleFilter,
+              },
+            },
+          },
+        }
+      : {}; // Empty where clause returns all users
+
+    const users = await prismaClient.user.findMany({
+      select: {
+        user_id: true,
+        name: true,
+        email: true,
+        telephone: true,
+        nik: true,
+        address: true,
+        createdAt: true,
+        User_Roles: {
+          select: {
+            Role: {
+              select: {
+                roles_name: true,
+              },
+            },
+          },
+        },
+      },
+      where: whereClause,
+    });
+
+    // Format the result
+    const result = users.map((user) => ({
+      user_id: user.user_id,
+      name: user.name,
+      email: user.email,
+      telephone: user.telephone,
+      nik: user.nik,
+      address: user.address,
+      createdAt: user.createdAt,
+      roles: user.User_Roles.map((ur) => ur.Role.roles_name),
+    }));
+
+    return result;
+  } catch (error) {
+    console.log(error);
+    throw error;
+  }
+};
+
+const findAllDataUserMember = async () => {
   try {
     const adminUsers = await prismaClient.user.findMany({
       select: {
@@ -408,7 +464,7 @@ const deleteUser = async ({ id }) => {
 
 module.exports = {
   findIdUser,
-  findAllDataUser,
+  findAllDataUserMember,
   createUser,
   updateUser,
   deleteUser,
@@ -417,4 +473,5 @@ module.exports = {
   createAdmin,
   updateAdmin,
   deleteAdmin,
+  findAllUsersQuery,
 };

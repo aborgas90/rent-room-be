@@ -5,6 +5,7 @@ const {
   updateRoom,
   deleteRoom,
   getAllRoomPublic,
+  getAllfacities,
 } = require("../../services/management-resource/room-management-service");
 
 const handleCreateRoom = async (req, res, next) => {
@@ -178,6 +179,20 @@ const handleDeleteRoom = async (req, res, next) => {
   }
 };
 
+const handleGetAllFacilities = async (req, res, next) => {
+  try {
+    const facilities = await getAllfacities();
+    res.status(200).json({
+      status: true,
+      message: "Get All Facilities Successfully",
+      data: facilities,
+    });
+  } catch (error) {
+    console.error("Error handleGetAllFacilities:", error);
+    next(error);
+  }
+};
+
 module.exports = {
   handleCreateRoom,
   handleGetAllRoom,
@@ -185,4 +200,5 @@ module.exports = {
   handleUpdateRoom,
   handleDeleteRoom,
   handleGetAllRoomPublic,
+  handleGetAllFacilities,
 };

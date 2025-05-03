@@ -5,7 +5,7 @@ const {
 } = require("../../middleware/middleware");
 const {
   handleFindIdUser,
-  handleGetAllDataUser,
+  handleGetAllDataUserMember,
   handleCreateUser,
   handleUpdateUser,
   handleDeleteUser,
@@ -14,6 +14,7 @@ const {
   handleCreateAdmin,
   handleDeleteAdmin,
   handleUpdateAdmin,
+  handleGetAllUsersQuery,
 } = require("../../controller/management-resource/management-user-controller");
 const {
   handleCreateRoom,
@@ -21,6 +22,7 @@ const {
   handleGetIdRoom,
   handleUpdateRoom,
   handleDeleteRoom,
+  handleGetAllFacilities,
 } = require("../../controller/management-resource/management-room-controller");
 const {
   handleGetAllReport,
@@ -35,12 +37,19 @@ const {
 } = require("../../controller/management-resource/money-report-management-controller");
 const managementApi = express.Router();
 
-// user management dengan param roles
+//user management filtering
 managementApi.get(
   "/management/user",
   authenticationMiddleware,
   authorizeRoles("super_admin", "admin"),
-  handleGetAllDataUser
+  handleGetAllUsersQuery
+)
+// user management dengan param roles
+managementApi.get(
+  "/management/user-member",
+  authenticationMiddleware,
+  authorizeRoles("super_admin", "admin"),
+  handleGetAllDataUserMember
 );
 managementApi.get(
   "/management/user/:id",
@@ -122,7 +131,7 @@ managementApi.get(
 );
 
 managementApi.put(
-  "/management/rooms/update:id",
+  "/management/rooms/update/:id",
   authenticationMiddleware,
   authorizeRoles("super_admin", "admin"),
   handleUpdateRoom
@@ -184,6 +193,14 @@ managementApi.get(
   authenticationMiddleware,
   authorizeRoles("super_admin", "admin"),
   handleGetAllTransaction
-)
+);
+
+//facisility
+managementApi.get(
+  "/management/facility",
+  authenticationMiddleware,
+  authorizeRoles("super_admin", "admin"),
+  handleGetAllFacilities
+);
 
 module.exports = managementApi;
