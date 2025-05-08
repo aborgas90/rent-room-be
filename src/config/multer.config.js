@@ -7,17 +7,27 @@ const storage = multer.diskStorage({
     cb(null, uploadPath);
   },
   filename: function (req, file, cb) {
-    const filename = 'report'+ '-'+ Date.now()+ path.extname(file.originalname);
+    const filename =
+      "report" + "-" + Date.now() + path.extname(file.originalname);
     cb(null, filename);
   },
 });
 
 //filter file type and size
 const fileFilter = (req, file, cb) => {
-  if (file.mimetype.startsWith("image/")) {
+  const allowedMimeTypes = [
+    "image/jpeg",
+    "image/png",
+    "image/gif",
+    "image/webp",
+  ];
+  if (allowedMimeTypes.includes(file.mimetype)) {
     cb(null, true);
   } else {
-    cb(new Error("Hanya file gambar yang diperbolehkan"), false);
+    cb(
+      new Error("Hanya file gambar (JPEG, PNG, GIF, WEBP) yang diperbolehkan"),
+      false
+    );
   }
 };
 

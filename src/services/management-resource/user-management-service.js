@@ -327,7 +327,15 @@ const findAllDataUserMember = async () => {
   }
 };
 
-const createUser = async ({ name, email, password, roles_name }) => {
+const createUser = async ({
+  name,
+  email,
+  password,
+  nik,
+  telephone,
+  address,
+  roles_name,
+}) => {
   try {
     const hashedPassword = await bcrypt.hash(password, 10);
 
@@ -346,6 +354,9 @@ const createUser = async ({ name, email, password, roles_name }) => {
         name,
         email,
         password: hashedPassword,
+        nik,
+        telephone,
+        address,
         User_Roles: {
           create: [
             {
@@ -387,14 +398,14 @@ const updateUser = async ({
   id,
   name,
   email,
-  password,
+  // password,
   telephone,
   nik,
   address,
   roles_name,
 }) => {
   try {
-    const hashedPassword = await bcrypt.hash(password, 10);
+    // const hashedPassword = await bcrypt.hash(password, 10);
 
     // Update data user
     await prismaClient.user.update({
@@ -405,15 +416,15 @@ const updateUser = async ({
         telephone,
         nik,
         address,
-        password: hashedPassword,
+        // password: hashedPassword,
       },
     });
 
     // Update role user via raw query
     await updateUserRoleRaw({ user_id: id, roles_name });
 
-    console.log(`✅ Admin ${id} updated successfully!`);
-    return { message: "Admin updated successfully!" };
+    console.log(`✅ User ${id} updated successfully!`);
+    return { message: "User updated successfully!" };
   } catch (error) {
     console.log(error);
     throw error;
@@ -462,6 +473,23 @@ const deleteUser = async ({ id }) => {
   }
 };
 
+const resetPassword = async ({ id, password }) => {
+  try {
+    const hashedPassword = await bcrypt.hash(password, 10);
+
+    const update = await prismaClient.user.update({
+      where: { user_id: id },
+      data: { password: hashedPassword },
+    });
+
+    return update;
+  } catch (error) {
+    console.log(error);
+    throw error;
+  }
+};
+
+
 module.exports = {
   findIdUser,
   findAllDataUserMember,
@@ -474,4 +502,5 @@ module.exports = {
   updateAdmin,
   deleteAdmin,
   findAllUsersQuery,
+  resetPassword
 };

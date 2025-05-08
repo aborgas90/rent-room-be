@@ -10,11 +10,12 @@ const {
 const handleCreateReport = async (req, res, next) => {
   const { user_id, name } = req.user;
   const parseId = parseInt(user_id, 10);
-  const { description, category } = req.body;
-  const { filename } = req.file;
+  const { title, description, category } = req.body;
+  const filename = req.file?.filename || null; // ✅ safe even if no file uploaded
 
   try {
     const result = await createReport({
+      title,
       user_id: parseId,
       filename,
       description,

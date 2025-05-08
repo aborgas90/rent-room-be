@@ -17,14 +17,14 @@ userApi.post(
   "/report-problem/create",
   upload.single("filename"),
   authenticationMiddleware,
-  authorizeRoles("member"),
+  authorizeRoles("member", "super_admin", "admin"),
   handleCreateReport
 );
 
 userApi.get(
   "/list-report-problem/",
   authenticationMiddleware,
-  authorizeRoles("member"),
+  authorizeRoles("member", "super_admin", "admin"),
   handleGetReportProblem
 );
 

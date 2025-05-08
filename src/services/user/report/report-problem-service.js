@@ -2,6 +2,7 @@ const prismaClient = require("../../../prisma-client");
 
 const createReport = async ({
   user_id,
+  title,
   filename,
   description,
   category,
@@ -13,17 +14,19 @@ const createReport = async ({
         tenant_id: user_id,
       },
     });
-    console.log("room trafagarlaw", Room);
+
+    const room_number = Room?.room_number || null;
 
     const actionReport = await prismaClient.problemReport.create({
       data: {
-        filename: `uploads/image/${filename}`,
+        title,
+        filename: `uploads/image/${filename}` || null,
         description,
         category,
         user_id,
         status: "PENDING",
         owner_name,
-        room_number: Room.room_number,
+        room_number: room_number,
       },
     });
 

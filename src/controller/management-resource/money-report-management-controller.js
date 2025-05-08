@@ -3,6 +3,9 @@ const {
   sumIncomeReport,
   sumExpenseReport,
   getAllTransactionPaymentPaid,
+  getAllTransaction,
+  editReportMoney,
+  deleteReportMoney,
 } = require("../../services/management-resource/money-report-management-service");
 
 const handleReportMoney = async (req, res, next) => {
@@ -23,6 +26,50 @@ const handleReportMoney = async (req, res, next) => {
     return res.status(200).json({
       status: true,
       message: `Success create report money`,
+      data: result,
+    });
+  } catch (error) {
+    console.log(error);
+    next(error);
+  }
+};
+
+const handleEditReportMoneyTransaction = async (req, res, next) => {
+  const { transaction_id } = req.params;
+  const parseId = parseInt(transaction_id, 10);
+  try {
+    const { amount, type, category, description, transaction_date } = req.body;
+    const result = await editReportMoney({
+      transaction_id: parseId,
+      amount,
+      type,
+      category,
+      description,
+      transaction_date,
+    });
+
+    return res.status(200).json({
+      status: true,
+      message: `Success edit report money`,
+      data: result,
+    });
+  } catch (error) {
+    console.log(error);
+    next(error);
+  }
+};
+
+const handleDeleteReportMoneyTransaction = async (req, res, next) => {
+  const { transaction_id } = req.params;
+  const parseId = parseInt(transaction_id, 10);
+  try {
+    const result = await deleteReportMoney({
+      transaction_id: parseId,
+    });
+
+    return res.status(200).json({
+      status: true,
+      message: `Success delete report money`,
       data: result,
     });
   } catch (error) {
@@ -79,9 +126,29 @@ const handleGetAllTransaction = async (req, res, next) => {
   }
 };
 
+const handleGetAllTransactionTable = async (req, res, next) => {
+  try {
+    const { type } = req.query;
+    console.log(type, "ini type");
+    const result = await getAllTransaction({ type });
+    res.status(200).json({ data: result });
+  } catch (error) {
+    console.error("🚨 Error handler get Income Report:", error.message);
+    res.status(500).json({
+      status_code: 500,
+      message: "Gagal memproses data transaction",
+      error: error.message,
+    });
+    next(error);
+  }
+};
+
 module.exports = {
   handleReportMoney,
   handleGetAllTransaction,
   handleGetExpenseReport,
   handleGetIncomeReport,
+  handleGetAllTransactionTable,
+  handleEditReportMoneyTransaction,
+  handleDeleteReportMoneyTransaction,
 };

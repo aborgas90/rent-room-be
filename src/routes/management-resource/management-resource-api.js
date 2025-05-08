@@ -15,6 +15,7 @@ const {
   handleDeleteAdmin,
   handleUpdateAdmin,
   handleGetAllUsersQuery,
+  handleResetPassword,
 } = require("../../controller/management-resource/management-user-controller");
 const {
   handleCreateRoom,
@@ -34,6 +35,9 @@ const {
   handleGetAllTransaction,
   handleGetExpenseReport,
   handleGetIncomeReport,
+  handleGetAllTransactionTable,
+  handleEditReportMoneyTransaction,
+  handleDeleteReportMoneyTransaction,
 } = require("../../controller/management-resource/money-report-management-controller");
 const managementApi = express.Router();
 
@@ -43,7 +47,7 @@ managementApi.get(
   authenticationMiddleware,
   authorizeRoles("super_admin", "admin"),
   handleGetAllUsersQuery
-)
+);
 // user management dengan param roles
 managementApi.get(
   "/management/user-member",
@@ -74,6 +78,13 @@ managementApi.delete(
   authenticationMiddleware,
   authorizeRoles("super_admin", "admin"),
   handleDeleteUser
+);
+
+managementApi.put(
+  "/management/user/reset-password/:id",
+  authenticationMiddleware,
+  authorizeRoles("super_admin", "admin"),
+  handleResetPassword
 );
 
 //admin management
@@ -174,6 +185,20 @@ managementApi.post(
   handleReportMoney
 );
 
+managementApi.put(
+  "/management/report-money/update/:transaction_id",
+  authenticationMiddleware,
+  authorizeRoles("super_admin", "admin"),
+  handleEditReportMoneyTransaction
+);
+
+managementApi.delete(
+  "/management/report-money/delete/:transaction_id",
+  authenticationMiddleware,
+  authorizeRoles("super_admin", "admin"),
+  handleDeleteReportMoneyTransaction
+);
+
 managementApi.get(
   "/management/report-money/income",
   authenticationMiddleware,
@@ -201,6 +226,13 @@ managementApi.get(
   authenticationMiddleware,
   authorizeRoles("super_admin", "admin"),
   handleGetAllFacilities
+);
+
+managementApi.get(
+  "/management/report-money/transaction",
+  authenticationMiddleware,
+  authorizeRoles("super_admin", "admin"),
+  handleGetAllTransactionTable
 );
 
 module.exports = managementApi;

@@ -12,6 +12,7 @@ const {
   updateUser,
   deleteUser,
   findAllUsersQuery,
+  resetPassword,
 } = require("../../services/management-resource/user-management-service");
 
 const handleFindIdUser = async (req, res, next) => {
@@ -98,7 +99,8 @@ const handleGetAllUsersQuery = async (req, res, next) => {
 };
 
 const handleCreateUser = async (req, res, next) => {
-  const { name, email, password, roles_name } = req.body;
+  const { name, email, password, nik, telephone, address, roles_name } =
+    req.body;
   try {
     const existingUser = await prismaClient.user.findUnique({
       where: { email },
@@ -112,7 +114,15 @@ const handleCreateUser = async (req, res, next) => {
       });
     }
 
-    const admin = await createUser({ name, email, password, roles_name });
+    const admin = await createUser({
+      name,
+      email,
+      password,
+      nik,
+      telephone,
+      address,
+      roles_name,
+    });
     return res.status(201).json({
       message: "Successfull",
       data: admin,
@@ -125,8 +135,7 @@ const handleCreateUser = async (req, res, next) => {
 const handleUpdateUser = async (req, res, next) => {
   const { id } = req.params;
   const parsedId = parseInt(id, 10);
-  const { name, email, password, telephone, nik, address, roles_name } =
-    req.body;
+  const { name, email, telephone, nik, address, roles_name } = req.body;
   try {
     if (!id) {
       throw new ResponseError(400, "Params id is required");
@@ -143,11 +152,10 @@ const handleUpdateUser = async (req, res, next) => {
       });
     }
 
-    const admin = await updateUser({
+    const result = await updateUser({
       id: parsedId,
       name,
       email,
-      password,
       telephone,
       nik,
       address,
@@ -155,7 +163,7 @@ const handleUpdateUser = async (req, res, next) => {
     });
     return res.status(200).json({
       message: "✅ Update Successful",
-      data: admin,
+      data: result,
     });
   } catch (error) {
     next(error);
@@ -184,6 +192,34 @@ const handleDeleteUser = async (req, res, next) => {
   } catch (error) {
     next(error);
   }
+};
+
+const handleResetPassword = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const parsedId = parseInt(id, 10);
+    const { password } = req.body;
+    const existingUser = await prismaClient.user.findUnique({
+      where: { user_id: parsedId },
+    });
+    if (!existingUser) {
+      return res.status(404).json({
+        success: false,
+        message: "Id not Found",
+      });
+    }
+    const user = await resetPassword({
+      id: parsedId,
+      password,
+    });
+
+    return res.status(200).json({
+      message: "Reset Password Successfull",
+      data: [
+        
+      ],
+    });
+  } catch (error) {}
 };
 
 const handleFindIdAdmin = async (req, res, next) => {
@@ -325,4 +361,5 @@ module.exports = {
   handleDeleteAdmin,
   handleUpdateAdmin,
   handleGetAllUsersQuery,
+  handleResetPassword,
 };

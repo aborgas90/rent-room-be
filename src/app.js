@@ -14,12 +14,16 @@ app.use(
   cors({
     origin: "http://localhost:3000", // frontend URL
     credentials: true,
+    methods: ["GET", "POST", "PUT", "DELETE", "PATCH"],
   })
 );
-app.use(cookieParser());
-app.use(express.json());
+app.use(express.json({ extended: true }));
 app.use(express.urlencoded({ extended: true }));
-app.use("/uploads", express.static(path.join(__dirname, "uploads", "image")));
+app.use(cookieParser());
+app.use(
+  "/uploads/image",
+  express.static(path.join(__dirname, "uploads", "image"))
+);
 app.use("/api/v1", apiRouter);
 //route
 apiRouter.use(publicRouter);

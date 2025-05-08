@@ -28,6 +28,49 @@ const createReportMoney = async ({
   }
 };
 
+const editReportMoney = async ({
+  transaction_id,
+  amount,
+  type,
+  category,
+  description,
+  transaction_date,
+}) => {
+  try {
+    const editReport = await prismaClient.transaction.update({
+      where: {
+        transaction_id: transaction_id,
+      },
+      data: {
+        amount: amount,
+        type: type,
+        category: category,
+        description: description,
+        transaction_date: new Date(transaction_date),
+      },
+    });
+
+    return editReport;
+  } catch (error) {
+    console.log(error);
+    throw error;
+  }
+};
+
+const deleteReportMoney = async ({ transaction_id }) => {
+  try {
+    const deleteReport = await prismaClient.transaction.delete({
+      where: {
+        transaction_id: transaction_id,
+      },
+    });
+
+    return deleteReport;
+  } catch (error) {
+    console.log(error);
+    throw error;
+  }
+};
 const getAllTransactionPaymentPaid = async (query = {}) => {
   try {
     const { status } = query;
@@ -45,17 +88,33 @@ const getAllTransactionPaymentPaid = async (query = {}) => {
         room: {
           select: { room_number: true, room_id: true },
         },
+        user: {
+          select: { name: true, email: true, telephone: true },
+        },
       },
     });
 
+    console.log("Paid Transactions:", paidTransactions);
     return paidTransactions.map(
-      ({ amount, settlementTime, payment_method, status, room }) => ({
+      ({
+        amount,
+        settlementTime,
+        end_rent,
+        payment_method,
+        status,
+        room,
+        user,
+      }) => ({
         room_id: room.room_id,
         roomNumber: room.room_number,
+        userName: user.name,
+        userEmail: user.email,
+        userPhone: user.telephone,
         nominal: amount,
         waktuPembayaran: settlementTime,
         metodePembayaran: payment_method,
         status,
+        end_rent,
       })
     );
   } catch (error) {
@@ -100,9 +159,30 @@ const sumExpenseReport = async () => {
   }
 };
 
+const getAllTransaction = async ({ type }) => {
+  try {
+    const whereClause = type ? { type: type.toUpperCase() } : {}; // jika type kosong, tidak filter apa-apa
+
+    const result = await prismaClient.transaction.findMany({
+      where: whereClause,
+      orderBy: {
+        transaction_date: "desc",
+      },
+    });
+
+    return result;
+  } catch (error) {
+    console.log(error);
+    throw error;
+  }
+};
+
 module.exports = {
   createReportMoney,
   getAllTransactionPaymentPaid,
   sumIncomeReport,
   sumExpenseReport,
+  getAllTransaction,
+  editReportMoney,
+  deleteReportMoney
 };
