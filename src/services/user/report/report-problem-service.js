@@ -1,4 +1,6 @@
 const prismaClient = require("../../../prisma-client");
+const { sendEmail } = require("../../../utils/emailSender");
+const { complaintEmail } = require("../../../utils/templates/complaintEmail");
 
 const createReport = async ({
   user_id,
@@ -28,6 +30,18 @@ const createReport = async ({
         owner_name,
         room_number: room_number,
       },
+    });
+
+    await sendEmail({
+      to: process.env.EMAIL_USER,
+      subject: "🚨 Pengaduan Masuk",
+      html: complaintEmail({
+        userName: owner_name,
+        category,
+        description,
+        roomNumber: room_number,
+        filename: `${process.env.APP_PUBLIC_BE_URL}/${actionReport?.filename}`,
+      }),
     });
 
     return actionReport;

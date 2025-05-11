@@ -110,11 +110,18 @@ const handleGetExpenseReport = async (req, res, next) => {
   }
 };
 
+//buat yang udah bayar dan masukkan ke transasksi pemasukan
 const handleGetAllTransaction = async (req, res, next) => {
   try {
-    const { status } = req.query;
-    const result = await getAllTransactionPaymentPaid({ status });
-    res.status(200).json({ data: result });
+    const { status, page, limit } = req.query;
+
+    const result = await getAllTransactionPaymentPaid({
+      status,
+      page,
+      limit,
+    });
+
+    res.status(200).json(result); // result sudah termasuk data dan pagination
   } catch (error) {
     console.error("🚨 Error handler get Income Report:", error.message);
     res.status(500).json({
@@ -126,12 +133,12 @@ const handleGetAllTransaction = async (req, res, next) => {
   }
 };
 
+//buat  payment yang dah bayar
 const handleGetAllTransactionTable = async (req, res, next) => {
   try {
-    const { type } = req.query;
-    console.log(type, "ini type");
-    const result = await getAllTransaction({ type });
-    res.status(200).json({ data: result });
+    const { type, page = 1, limit = 10 } = req.query;
+    const result = await getAllTransaction({ type, page, limit });
+    res.status(200).json(result);
   } catch (error) {
     console.error("🚨 Error handler get Income Report:", error.message);
     res.status(500).json({

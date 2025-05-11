@@ -36,13 +36,12 @@ const handleCreateReport = async (req, res, next) => {
 const handleGetReportProblem = async (req, res, next) => {
   try {
     const { user_id } = req.user;
-    console.log(user_id, "user Report");
 
     const result = await getReportUser({ user_id });
     res.status(200).json({
       status: true,
       message: "Success to get all report problems",
-      data: result,
+      data: result || [],
     });
   } catch (error) {
     next(error);

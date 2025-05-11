@@ -9,8 +9,19 @@ const {
 } = require("../../controller/user/report/report-controller");
 const {
   handlerCreatePayment,
+  handleGetIdRoom,
+  handleGetIdRoomBooking,
+  handlerGetBookingStatus,
 } = require("../../controller/payment/payment-controller");
 const upload = require("../../config/multer.config");
+const {
+  handlerRequestBookRoom,
+  handlerGetAllRequestBook,
+  handleActionApproveRequestBook,
+  handleActionRejectRequestBook,
+  handlerGetApprovedBookingDetail,
+} = require("../../controller/payment/request-book-room/request-book-controller");
+const { user } = require("../../prisma-client");
 const userApi = express.Router();
 
 userApi.post(
@@ -24,15 +35,65 @@ userApi.post(
 userApi.get(
   "/list-report-problem/",
   authenticationMiddleware,
-  authorizeRoles("member", "super_admin", "admin"),
+  authorizeRoles("member", "super_admin", "admin", "out_member"),
   handleGetReportProblem
 );
 
 userApi.post(
   "/payment/create",
   authenticationMiddleware,
-  authorizeRoles("member"),
+  authorizeRoles("member", "super_admin"),
   handlerCreatePayment
+);
+
+//booking request
+userApi.post(
+  "/booking-request/create",
+  authenticationMiddleware,
+  authorizeRoles("out_member", "super_admin"),
+  handlerRequestBookRoom
+);
+
+userApi.get(
+  "/booking-request/list",
+  authenticationMiddleware,
+  authorizeRoles("super_admin", "admin"),
+  handlerGetAllRequestBook
+);
+
+userApi.post(
+  "/booking-request/approve/:request_id",
+  authenticationMiddleware,
+  authorizeRoles("super_admin", "admin"),
+  handleActionApproveRequestBook
+);
+
+userApi.post(
+  "/booking-request/reject/:request_id",
+  authenticationMiddleware,
+  authorizeRoles("super_admin", "admin"),
+  handleActionRejectRequestBook
+);
+
+userApi.get(
+  "/booking-room/room/:id",
+  authenticationMiddleware,
+  authorizeRoles("super_admin", "admin", "member", "out_member"),
+  handleGetIdRoomBooking
+);
+
+userApi.get(
+  "/booking-room/status/:room_id",
+  authenticationMiddleware,
+  authorizeRoles("super_admin", "admin", "out_member"),
+  handlerGetBookingStatus
+);
+
+userApi.get(
+  "/request-book/booking-info/:room_id",
+  authenticationMiddleware,
+  authorizeRoles("super_admin", "admin", "member", "out_member"),
+  handlerGetApprovedBookingDetail
 );
 
 module.exports = {

@@ -33,7 +33,7 @@ const authenticationMiddleware = (req, res, next) => {
 const authorizeRoles = (...rolesAllowed) => {
   return (req, res, next) => {
     const { roles } = req.user;
-    console.log(roles)
+    console.log(roles, "roles nya apa")
 
     if (!rolesAllowed.includes(roles)) {
       return res

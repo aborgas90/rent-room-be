@@ -13,6 +13,7 @@ const {
   deleteUser,
   findAllUsersQuery,
   resetPassword,
+  countAllUsersQuery,
 } = require("../../services/management-resource/user-management-service");
 
 const handleFindIdUser = async (req, res, next) => {
@@ -64,7 +65,7 @@ const handleGetAllDataUserMember = async (req, res, next) => {
 const handleGetAllUsersQuery = async (req, res, next) => {
   try {
     const { roles: userRoles } = req.user;
-    const { role: filterRole } = req.query;
+    const { role: filterRole, search = "", page = 1, limit = 10 } = req.query;
 
     // Permission check
     if (userRoles !== "super_admin" && userRoles !== "admin") {
@@ -74,24 +75,24 @@ const handleGetAllUsersQuery = async (req, res, next) => {
       });
     }
 
-    const users = await findAllUsersQuery(filterRole);
+    const currentPage = parseInt(page);
+    const pageSize = parseInt(limit);
+    const offset = (currentPage - 1) * pageSize;
 
-    if (users.length === 0) {
-      return res.status(200).json({
-        status: true,
-        message: filterRole
-          ? `No users found with role '${filterRole}'`
-          : "No users found",
-        data: [],
-      });
-    }
+    // Query all users based on filters
+    const users = await findAllUsersQuery(filterRole, search, offset, pageSize);
+    const total = await countAllUsersQuery(filterRole, search);
 
     return res.status(200).json({
       status: true,
-      message: filterRole
-        ? `Successfully retrieved users with role '${filterRole}'`
-        : "Successfully retrieved all users",
+      message: "Users retrieved successfully",
       data: users,
+      pagination: {
+        currentPage,
+        pageSize,
+        totalPages: Math.ceil(total / pageSize),
+        totalItems: total,
+      },
     });
   } catch (error) {
     next(error);
@@ -215,9 +216,7 @@ const handleResetPassword = async (req, res, next) => {
 
     return res.status(200).json({
       message: "Reset Password Successfull",
-      data: [
-        
-      ],
+      data: [],
     });
   } catch (error) {}
 };

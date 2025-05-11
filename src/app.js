@@ -12,7 +12,7 @@ const cookieParser = require("cookie-parser");
 
 app.use(
   cors({
-    origin: "http://localhost:3000", // frontend URL
+    origin: process.env.APP_FRONTEND_URL,
     credentials: true,
     methods: ["GET", "POST", "PUT", "DELETE", "PATCH"],
   })
@@ -25,17 +25,12 @@ app.use(
   express.static(path.join(__dirname, "uploads", "image"))
 );
 app.use("/api/v1", apiRouter);
-//route
 apiRouter.use(publicRouter);
 apiRouter.use(managementApi);
 apiRouter.use(userApi);
 
 app.get("/", (req, res) => {
   res.send("Hello Dunia Gelap!");
-});
-
-app.listen(port, () => {
-  console.log(`Example app listening on port ${port}`);
 });
 
 module.exports = app;

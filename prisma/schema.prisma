@@ -6,6 +6,7 @@
 
 generator client {
   provider = "prisma-client-js"
+  output   = "./node_modules/@prisma/client"
 }
 
 datasource db {
@@ -14,21 +15,23 @@ datasource db {
 }
 
 model User {
-  user_id      Int             @id @default(autoincrement())
-  name         String          @db.VarChar(100)
-  email        String          @unique
-  password     String          @db.VarChar(255)
-  telephone    String?         @db.VarChar(13)
-  nik          String?         @db.VarChar(255)
-  address      String?         @db.VarChar(255)
-  createdAt    DateTime        @default(now())
-  updatedAt    DateTime        @default(now()) @updatedAt
-  User_Roles   User_Roles[]
-  ownedRooms   Room[]          @relation("RoomOwner")
-  rentedRoom   Room?           @relation("RoomTenant")
-  payments     Payment[]       @relation("UserPayments")
-  transactions Transaction[]   @relation("AdminTransactions")
-  report       ProblemReport[]
+  user_id          Int              @id @default(autoincrement())
+  name             String           @db.VarChar(100)
+  email            String           @unique
+  password         String           @db.VarChar(255)
+  telephone        String?          @db.VarChar(13)
+  nik              String?          @db.VarChar(255)
+  address          String?          @db.VarChar(255)
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @default(now()) @updatedAt
+  User_Roles       User_Roles[]
+  ownedRooms       Room[]           @relation("RoomOwner")
+  rentedRoom       Room?            @relation("RoomTenant")
+  payments         Payment[]        @relation("UserPayments")
+  transactions     Transaction[]    @relation("AdminTransactions")
+  report           ProblemReport[]
+  approvedRequests BookingRequest[] @relation("ApprovedRequests")
+  BookingRequest   BookingRequest[]
 }
 
 model Roles {
@@ -56,16 +59,17 @@ model Room {
   bathroomType BathroomType
 
   owner_id       Int
-  owner          User           @relation("RoomOwner", fields: [owner_id], references: [user_id])
+  owner          User             @relation("RoomOwner", fields: [owner_id], references: [user_id])
   owner_name     String?
-  tenant_id      Int?           @unique
-  tenant         User?          @relation("RoomTenant", fields: [tenant_id], references: [user_id])
-  is_deleted     Boolean        @default(false)
-  createdAt      DateTime       @default(now())
-  updatedAt      DateTime       @default(now()) @updatedAt
+  tenant_id      Int?             @unique
+  tenant         User?            @relation("RoomTenant", fields: [tenant_id], references: [user_id])
+  is_deleted     Boolean          @default(false)
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @default(now()) @updatedAt
   locked_at      DateTime?
-  payments       Payment[]      @relation("RoomPayments")
+  payments       Payment[]        @relation("RoomPayments")
   roomFacilities RoomFacility[]
+  BookingRequest BookingRequest[]
 }
 
 enum RoomStatus {
@@ -102,7 +106,8 @@ model Payment {
   user User @relation("UserPayments", fields: [user_id], references: [user_id])
   room Room @relation("RoomPayments", fields: [room_id], references: [room_id])
 
-  transactions Transaction[] @relation("PaymentTransactions")
+  transactions   Transaction[]   @relation("PaymentTransactions")
+  BookingRequest BookingRequest?
 }
 
 enum PaymentStatus {
@@ -184,4 +189,32 @@ enum CategoryProblem {
 enum ProblemStatus {
   DONE
   PENDING
+}
+
+model BookingRequest {
+  id          Int           @id @default(autoincrement())
+  user_id     Int
+  room_id     Int
+  start_rent  DateTime
+  end_rent    DateTime
+  status      BookingStatus @default(PENDING_APPROVAL)
+  created_at  DateTime      @default(now())
+  approved_at DateTime?
+  rejected_at DateTime?
+  payment_id  Int?          @unique
+  notes       String?
+  admin_id    Int?
+  admin       User?         @relation("ApprovedRequests", fields: [admin_id], references: [user_id])
+
+  // Relations
+  user    User     @relation(fields: [user_id], references: [user_id])
+  room    Room     @relation(fields: [room_id], references: [room_id])
+  payment Payment? @relation(fields: [payment_id], references: [payment_id])
+}
+
+enum BookingStatus {
+  PENDING_APPROVAL
+  APPROVED
+  REJECTED
+  EXPIRED
 }

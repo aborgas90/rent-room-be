@@ -2,6 +2,9 @@ const {
   createSnapPayment,
   getTransactionStatusOrderId,
   updatePaymentStatus,
+  getRoomIdTransaction,
+  getBookingStatus,
+  hasPendingOrApprovedRequest,
 } = require("../../services/payment/payment-service");
 const crypto = require("crypto");
 
@@ -9,7 +12,6 @@ const handlerCreatePayment = async (req, res, next) => {
   try {
     const { user_id } = req.user;
     const { roomId, start_rent, end_rent } = req.body;
-    console.log(req.body, " :: req.body");
 
     const payment = await createSnapPayment({
       user_id,
@@ -19,16 +21,22 @@ const handlerCreatePayment = async (req, res, next) => {
     });
 
     res.status(200).json({
+      status: true,
       message: "Berhasil membuat pembayaran",
       payment_token: payment.token,
       redirect_url: payment.redirect_url,
     });
   } catch (error) {
-    next(error);
-    console.error("Create payment error:", error.message);
-    res
-      .status(500)
-      .json({ message: "Gagal membuat pembayaran", error: error.message });
+    const status = error.status || 500;
+    const message =
+      error.message || "Terjadi kesalahan saat membuat pembayaran";
+
+    console.error("❌ Create payment error:", message);
+
+    return res.status(status).json({
+      status: false,
+      message,
+    });
   }
 };
 
@@ -51,7 +59,7 @@ const handleGetTransactionOrderId = async (req, res, next) => {
   }
 };
 
-const handlerMidtransNotification = async (req, res, next) => {
+const handlerMidtransNotification = async (req, res) => {
   try {
     const {
       order_id,
@@ -61,15 +69,23 @@ const handlerMidtransNotification = async (req, res, next) => {
       fraud_status,
       settlement_time,
       payment_type,
+      signature_key,
     } = req.body;
 
+    // 🔐 Verifikasi Signature
     const serverKey = process.env.MIDTRANS_SERVER_KEY;
-    const input = order_id + status_code + gross_amount + serverKey;
+    const hashSource = order_id + status_code + gross_amount + serverKey;
     const expectedSignature = crypto
       .createHash("sha512")
-      .update(input)
+      .update(hashSource)
       .digest("hex");
 
+    if (expectedSignature !== signature_key) {
+      console.warn("🚨 Signature mismatch from Midtrans!");
+      return res.status(403).json({ message: "Invalid signature" });
+    }
+
+    // 🧠 Kirim ke service
     const notificationData = {
       order_id,
       transaction_status,
@@ -78,16 +94,22 @@ const handlerMidtransNotification = async (req, res, next) => {
       payment_type,
     };
 
-    await updatePaymentStatus(notificationData);
+    const result = await updatePaymentStatus(notificationData);
 
-    res.status(200).json({
+    if (result?.alreadyProcessed) {
+      return res.status(200).json({
+        status_code: 200,
+        message: "Webhook already processed, no changes applied",
+      });
+    }
+
+    return res.status(200).json({
       status_code: 200,
       message: "Notifikasi berhasil diproses",
     });
   } catch (error) {
-    next(error);
     console.error("🚨 Error handler notifikasi:", error.message);
-    res.status(500).json({
+    return res.status(500).json({
       status_code: 500,
       message: "Gagal memproses notifikasi",
       error: error.message,
@@ -95,8 +117,75 @@ const handlerMidtransNotification = async (req, res, next) => {
   }
 };
 
+const handleGetIdRoomBooking = async (req, res, next) => {
+  const { id } = req.params;
+  const parseRoomId = parseInt(id, 10);
+
+  try {
+    if (isNaN(parseRoomId)) {
+      return res.status(400).json({
+        message: "room_id parameter is not a valid number",
+      });
+    }
+
+    const findRoom = await getRoomIdTransaction(parseRoomId); // ✅ kirim sebagai integer
+
+    if (!findRoom) {
+      return res.status(404).json({
+        status: false,
+        message: `Room with ID ${parseRoomId} not found`,
+      });
+    }
+
+    res.status(200).json({
+      status: true,
+      message: "Get By Id Successfully",
+      data: findRoom,
+    });
+  } catch (error) {
+    console.error("Error handleGetIdRoomBooking: ", error);
+    next(error);
+  }
+};
+
+const handlerGetBookingStatus = async (req, res, next) => {
+  const { room_id } = req.params;
+  const { user_id } = req.user;
+
+  try {
+    // opsional: validasi input
+    if (isNaN(room_id)) {
+      return res.status(400).json({
+        status: false,
+        message: "Invalid room_id",
+      });
+    }
+
+    // const alreadyExists = await hasPendingOrApprovedRequest(room_id, user_id);
+    // if (alreadyExists) {
+    //   return res.status(400).json({
+    //     status: false,
+    //     message: "Kamu sudah mengirim permintaan booking yang sedang diproses.",
+    //   });
+    // }
+
+    const bookingStatus = await getBookingStatus(room_id, user_id);
+
+    res.status(200).json({
+      status: true,
+      message: "Get Booking Status Successfully",
+      data: bookingStatus,
+    });
+  } catch (error) {
+    console.error("Error handlerGetBookingStatus: ", error);
+    next(error);
+  }
+};
+
 module.exports = {
   handlerCreatePayment,
   handlerMidtransNotification,
   handleGetTransactionOrderId,
+  handleGetIdRoomBooking,
+  handlerGetBookingStatus,
 };

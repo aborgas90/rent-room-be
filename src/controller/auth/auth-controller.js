@@ -63,7 +63,7 @@ const handleLogin = async (req, res, next) => {
       httpOnly: false,
       sameSite: "Lax", // or 'Strict' if needed
       secure: false, // true if using HTTPS
-      maxAge: 60 * 60 * 1000, // 1 hour
+      maxAge: 24 * 60 * 60 * 1000,
     });
 
     return res.status(200).json({

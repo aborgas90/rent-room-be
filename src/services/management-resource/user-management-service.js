@@ -219,22 +219,44 @@ const findIdUser = async ({ id }) => {
   }
 };
 
-const findAllUsersQuery = async (roleFilter) => {
+const findAllUsersQuery = async (
+  roleFilter,
+  search = "",
+  offset = 0,
+  limit = 10
+) => {
   try {
-    // Build the where clause conditionally
-    const whereClause = roleFilter
-      ? {
-          User_Roles: {
-            some: {
-              Role: {
-                roles_name: roleFilter,
+    // Build dynamic where clause
+    const whereClause = {
+      AND: [
+        roleFilter
+          ? {
+              User_Roles: {
+                some: {
+                  Role: {
+                    roles_name: roleFilter,
+                  },
+                },
               },
-            },
-          },
-        }
-      : {}; // Empty where clause returns all users
+            }
+          : {},
+        search
+          ? {
+              name: {
+                contains: search.toLocaleLowerCase(),
+              },
+            }
+          : {},
+      ],
+    };
 
     const users = await prismaClient.user.findMany({
+      where: whereClause,
+      skip: offset,
+      take: limit,
+      orderBy: {
+        createdAt: "desc",
+      },
       select: {
         user_id: true,
         name: true,
@@ -253,11 +275,9 @@ const findAllUsersQuery = async (roleFilter) => {
           },
         },
       },
-      where: whereClause,
     });
 
-    // Format the result
-    const result = users.map((user) => ({
+    return users.map((user) => ({
       user_id: user.user_id,
       name: user.name,
       email: user.email,
@@ -267,10 +287,8 @@ const findAllUsersQuery = async (roleFilter) => {
       createdAt: user.createdAt,
       roles: user.User_Roles.map((ur) => ur.Role.roles_name),
     }));
-
-    return result;
   } catch (error) {
-    console.log(error);
+    console.error("findAllUsersQuery error:", error);
     throw error;
   }
 };
@@ -489,6 +507,40 @@ const resetPassword = async ({ id, password }) => {
   }
 };
 
+const countAllUsersQuery = async (roleFilter, search = "") => {
+  try {
+    const andConditions = [];
+
+    if (roleFilter) {
+      andConditions.push({
+        User_Roles: {
+          some: {
+            Role: {
+              roles_name: roleFilter,
+            },
+          },
+        },
+      });
+    }
+
+    if (search) {
+      andConditions.push({
+        name: {
+          contains: search.toLowerCase(), // hanya jika Prisma sudah generate ulang
+        },
+      });
+    }
+
+    const whereClause = andConditions.length > 0 ? { AND: andConditions } : {};
+
+    return await prismaClient.user.count({
+      where: whereClause,
+    });
+  } catch (error) {
+    console.error("countAllUsersQuery error:", error);
+    throw error;
+  }
+};
 
 module.exports = {
   findIdUser,
@@ -502,5 +554,6 @@ module.exports = {
   updateAdmin,
   deleteAdmin,
   findAllUsersQuery,
-  resetPassword
+  resetPassword,
+  countAllUsersQuery,
 };

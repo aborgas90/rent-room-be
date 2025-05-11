@@ -1,20 +1,19 @@
-// server.js
-const app = require('./app.js');
-const connectDatabase = require('./database/database.js');
-require('dotenv').config({path:['.env']})
-const port = process.env.APP_PORT
+require("dotenv").config(); // Load .env before anything else
+const app = require("./app.js");
+const connectDatabase = require("./database/database.js");
 
-// Connect to the database
+const port = process.env.APP_PORT; // fallback
+
 connectDatabase();
 
-// Log the current environment
-if (process.env.NODE_ENV === 'development') {
-    console.log(`Development environment detected. NODE_ENV = ${process.env.NODE_ENV}`, true);
-} else if (process.env.NODE_ENV === 'test') {
-    console.log(`Test environment detected. NODE_ENV = ${process.env.NODE_ENV}`, true);
+if (process.env.NODE_ENV === "development") {
+  console.log(
+    `Development environment detected. NODE_ENV = ${process.env.NODE_ENV}`
+  );
+} else if (process.env.NODE_ENV === "test") {
+  console.log(`Test environment detected. NODE_ENV = ${process.env.NODE_ENV}`);
 }
 
-// Start the server
 app.listen(port, () => {
-    console.log(`🌍 App listening on port ${port}`);
+  console.log(`🌍 App listening on port ${port}`);
 });

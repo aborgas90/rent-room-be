@@ -2,14 +2,11 @@ const midtransClient = require("midtrans-client");
 const prismaClient = require("../../prisma-client");
 require("dotenv").config({ path: [".env"] });
 const { snap, coreApi } = require("../../config/midtrans.config");
+const { ResponseError } = require("../../error/error-response");
 
 //create payment
 const createSnapPayment = async ({ user_id, roomId, start_rent, end_rent }) => {
-  console.log("user id :: ", user_id);
-  const user = await prismaClient.user.findUnique({
-    where: { user_id },
-  });
-
+  const user = await prismaClient.user.findUnique({ where: { user_id } });
   const room = await prismaClient.room.findUnique({
     where: { room_id: roomId },
   });
@@ -18,26 +15,8 @@ const createSnapPayment = async ({ user_id, roomId, start_rent, end_rent }) => {
     throw new Error("User atau kamar tidak ditemukan");
   }
 
-  const existingRental = await prismaClient.payment.findFirst({
-    where: {
-      user_id: user_id,
-      status: "PAID", // Hanya cari status yang sudah dibayar
-    },
-    include: {
-      room: true, // Ambil informasi kamar yang sudah disewa
-    },
-  });
-
-  if (existingRental) {
-    throw new Error("User sudah menyewa kamar lain.");
-  }
-
-  if (room.status !== "TERSEDIA") {
-    throw new Error("Kamar sudah tidak tersedia");
-  }
-
   if (!start_rent || !end_rent) {
-    throw new Error("Tanggal mulai dan tanggal selesai sewa harus diisi");
+    throw Response("Tanggal mulai dan tanggal selesai sewa harus diisi");
   }
 
   const startDate = new Date(start_rent);
@@ -58,8 +37,8 @@ const createSnapPayment = async ({ user_id, roomId, start_rent, end_rent }) => {
   const pricePerMonth = parseFloat(room.price);
   const days = Math.ceil((endDate - startDate) / MILLISECONDS_IN_A_DAY);
   const grossAmount = Math.ceil((days / 30) * pricePerMonth);
-
   const orderId = `INV-${Date.now()}-${user_id}`;
+
   const parameter = {
     transaction_details: {
       order_id: orderId,
@@ -78,14 +57,17 @@ const createSnapPayment = async ({ user_id, roomId, start_rent, end_rent }) => {
         quantity: 1,
       },
     ],
+    callbacks: {
+      finish: `${process.env.APP_FRONTEND_URL}/dashboard/pembayaran-berhasil?order_id=${orderId}`,
+    },
   };
 
-  // ⬇️ Midtrans API dulu, di luar Prisma
   const midtransResponse = await snap.createTransaction(parameter);
 
-  // ⬇️ Setelah berhasil, baru simpan ke DB
+  // ⬇️ Atomic room locking & payment insert
   const result = await prismaClient.$transaction(async (tx) => {
-    const updatedRoom = await tx.room.update({
+    // Re-check & lock the room inside the transaction
+    const updatedRoom = await tx.room.updateMany({
       where: {
         room_id: room.room_id,
         status: "TERSEDIA",
@@ -95,6 +77,13 @@ const createSnapPayment = async ({ user_id, roomId, start_rent, end_rent }) => {
         locked_at: new Date(),
       },
     });
+
+    if (updatedRoom.count === 0) {
+      throw new ResponseError(
+        409,
+        "Kamar sudah tidak tersedia atau sedang diproses oleh pengguna lain."
+      );
+    }
 
     const payment = await tx.payment.create({
       data: {
@@ -136,7 +125,6 @@ const unlockExpiredRooms = async () => {
     },
   });
 
-
   for (const room of roomToUnlock) {
     await prismaClient.room.update({
       where: { room_id: room.room_id },
@@ -147,7 +135,7 @@ const unlockExpiredRooms = async () => {
   }
 };
 
-setInterval(unlockExpiredRooms,60 *  60 * 1000);
+setInterval(unlockExpiredRooms, 60 * 60 * 1000);
 
 //get midtrans status data
 const getTransactionStatusOrderId = async ({ order_id }) => {
@@ -170,6 +158,47 @@ const getTransactionStatusOrderId = async ({ order_id }) => {
   } catch (error) {
     console.error("❌ Gagal mendapatkan status id:", error.message);
     throw error;
+  }
+};
+
+const updateUserRole = async (user_id, new_role = "MEMBER") => {
+  // ⬅️ Cari semua role user sekarang
+  const currentRoles = await prismaClient.user_Roles.findMany({
+    where: { user_id },
+    include: { Role: true },
+  });
+
+  const hasSuperAdmin = currentRoles.some(
+    (ur) => ur.Role.roles_name === "SUPER_ADMIN"
+  );
+
+  if (hasSuperAdmin) {
+    console.log(`🛡️ Skipping role update: User ${user_id} is SUPER_ADMIN`);
+    return;
+  }
+
+  // ⬇️ Cek apakah sudah jadi MEMBER
+  const memberRole = await prismaClient.roles.findUnique({
+    where: { roles_name: new_role },
+  });
+
+  if (!memberRole) {
+    throw new Error(`Role '${new_role}' not found`);
+  }
+
+  const alreadyHasRole = currentRoles.some(
+    (ur) => ur.roles_id === memberRole.roles_id
+  );
+
+  if (!alreadyHasRole) {
+    await prismaClient.user_Roles.create({
+      data: {
+        user_id,
+        roles_id: memberRole.roles_id,
+      },
+    });
+
+    console.log(`✅ User ${user_id} upgraded to ${new_role}`);
   }
 };
 
@@ -197,6 +226,10 @@ const updatePaymentStatus = async (notification) => {
     });
 
     if (!payment || payment.status === "SUCCESS") return;
+    if (["PAID", "SUCCESS"].includes(payment.status)) {
+      console.log("ℹ️ Webhook ignored: already paid.");
+      return { alreadyProcessed: true };
+    }
 
     let newStatus = "PENDING";
 
@@ -237,6 +270,8 @@ const updatePaymentStatus = async (notification) => {
           transaction_date: convertTime,
         },
       });
+
+      await updateUserRole(payment.user_id, "MEMBER");
 
       console.log(`🏠 Kamar ${payment.room_id} di-set sebagai TERSEWA.`);
     } else if (newStatus === "FAILED") {
@@ -297,8 +332,85 @@ const expireFinishedRentals = async () => {
 
 setInterval(expireFinishedRentals, 60 * 60 * 1000);
 
+const getRoomIdTransaction = async (roomId) => {
+  try {
+    const roomData = await prismaClient.room.findUnique({
+      where: {
+        room_id: roomId,
+      },
+      include: {
+        roomFacilities: {
+          include: {
+            facility: true,
+          },
+        },
+        owner: {
+          select: {
+            user_id: true,
+            name: true,
+          },
+        },
+        tenant: true,
+        payments: true,
+      },
+    });
+
+    if (!roomData) {
+      throw new Error("Room not found");
+    }
+
+    // Ambil daftar fasilitas langsung
+    const facilities = roomData.roomFacilities.map((rf) => rf.facility);
+
+    // Return tanpa roomFacilities
+    const { roomFacilities, ...roomWithoutRoomFacilities } = roomData;
+
+    return {
+      ...roomWithoutRoomFacilities,
+      facilities,
+    };
+  } catch (error) {
+    console.error("❌ Gagal mendapatkan data kamar:", error.message);
+    throw error;
+  }
+};
+
+const getBookingStatus = async (room_id, user_id) => {
+  const result = await prismaClient.bookingRequest.findFirst({
+    where: {
+      room_id: parseInt(room_id, 10),
+      user_id: parseInt(user_id, 10),
+    },
+    orderBy: {
+      created_at: "desc",
+    },
+  });
+
+  console.log(result, user_id, room_id, "result booking status");
+  return result?.status || "NOT_FOUND";
+};
+
+const hasPendingOrApprovedRequest = async (room_id, user_id) => {
+  const existingRequest = await prismaClient.bookingRequest.findFirst({
+    where: {
+      room_id: parseInt(room_id, 10),
+      user_id: parseInt(user_id, 10),
+      status: {
+        in: ["PENDING_APPROVAL", "APPROVED"],
+      },
+    },
+  });
+
+  console.log(existingRequest, "existing request");
+
+  return !!existingRequest;
+};
+
 module.exports = {
   createSnapPayment,
   updatePaymentStatus,
   getTransactionStatusOrderId,
+  getRoomIdTransaction,
+  getBookingStatus,
+  hasPendingOrApprovedRequest,
 };
