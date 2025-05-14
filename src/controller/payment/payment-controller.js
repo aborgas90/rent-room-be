@@ -71,6 +71,11 @@ const handlerMidtransNotification = async (req, res) => {
       payment_type,
       signature_key,
     } = req.body;
+    console.log(
+      "📩 Webhook received:",
+      req.body.transaction_status,
+      req.body.order_id
+    );
 
     // 🔐 Verifikasi Signature
     const serverKey = process.env.MIDTRANS_SERVER_KEY;
@@ -160,14 +165,6 @@ const handlerGetBookingStatus = async (req, res, next) => {
         message: "Invalid room_id",
       });
     }
-
-    // const alreadyExists = await hasPendingOrApprovedRequest(room_id, user_id);
-    // if (alreadyExists) {
-    //   return res.status(400).json({
-    //     status: false,
-    //     message: "Kamu sudah mengirim permintaan booking yang sedang diproses.",
-    //   });
-    // }
 
     const bookingStatus = await getBookingStatus(room_id, user_id);
 

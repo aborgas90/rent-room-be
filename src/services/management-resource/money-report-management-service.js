@@ -182,32 +182,147 @@ const sumExpenseReport = async () => {
   }
 };
 
+const getAllPayments = async ({
+  search = "",
+  payment_method,
+  status,
+  month,
+  year,
+  page = 1,
+  limit = 10,
+}) => {
+  try {
+    const whereClause = {
+      ...(payment_method && { payment_method }),
+      ...(status && { status }),
+      ...(search && {
+        OR: [
+          { midtrans_order_id: { contains: search } },
+          { user: { email: { contains: search } } },
+          { user: { name: { contains: search } } },
+        ],
+      }),
+      ...(month &&
+        year && {
+          payment_date: {
+            gte: new Date(year, month - 1, 1), // awal bulan
+            lt: new Date(year, month, 1), // awal bulan berikutnya
+          },
+        }),
+    };
+
+    const total = await prismaClient.payment.count({ where: whereClause });
+
+    const data = await prismaClient.payment.findMany({
+      where: whereClause,
+      include: {
+        user: {
+          select: {
+            name: true,
+            email: true,
+            telephone: true,
+          },
+        },
+        room: {
+          select: {
+            room_number: true,
+          },
+        },
+      },
+      orderBy: { payment_date: "desc" },
+      skip: (page - 1) * limit,
+      take: limit,
+    });
+
+    const formatted = data.map((item) => ({
+      room_id: item.room_id,
+      roomNumber: item.room?.room_number || "-",
+      userName: item.user?.name || "-",
+      userEmail: item.user?.email || "-",
+      userPhone: item.user?.telephone || "",
+      nominal: item.amount,
+      waktuPembayaran: item.payment_date,
+      metodePembayaran: item.payment_method,
+      status: item.status,
+      start_rent: item.start_rent,
+      end_rent: item.end_rent,
+      invoice: item.midtrans_order_id,
+    }));
+
+    return {
+      data: formatted,
+      pagination: {
+        total,
+        page,
+        limit,
+        totalPages: Math.ceil(total / limit),
+      },
+    };
+  } catch (error) {
+    console.error("❌ Error getAllPayments:", error.message);
+    throw error;
+  }
+};
+
 const getAllTransaction = async ({ type, page = 1, limit = 10 }) => {
   try {
     const whereClause = type ? { type: type.toUpperCase() } : {};
 
     const total = await prismaClient.transaction.count({ where: whereClause });
 
-    const result = await prismaClient.transaction.findMany({
+    const data = await prismaClient.transaction.findMany({
       where: whereClause,
-      orderBy: {
-        transaction_date: "desc",
+      include: {
+        payment: {
+          select: {
+            midtrans_order_id: true,
+            user: {
+              select: {
+                name: true,
+                email: true,
+              },
+            },
+          },
+        },
+        admin: {
+          select: {
+            name: true,
+            email: true,
+          },
+        },
       },
+      orderBy: { transaction_date: "desc" },
       skip: (page - 1) * limit,
       take: parseInt(limit),
     });
+
+    const result = data.map((item) => ({
+      transaction_id: item.transaction_id,
+      invoice: item.payment?.midtrans_order_id || null,
+      nama_pembayar: item.payment?.user?.name || "-",
+      email_pembayar: item.payment?.user?.email || "-",
+      owner_name: item.admin?.name || "-",
+      owner_email: item.admin?.email || "-",
+      amount: item.amount,
+      type: item.type,
+      category: item.category,
+      description: item.description,
+      transaction_date: item.transaction_date,
+      createdAt: item.createdAt,
+      updatedAt: item.updatedAt,
+    }));
 
     return {
       data: result,
       pagination: {
         total,
-        page: Number(page),
-        limit: Number(limit),
+        page,
+        limit,
         totalPages: Math.ceil(total / limit),
       },
     };
   } catch (error) {
-    console.log(error);
+    console.error("❌ Error getAllTransaction:", error.message);
     throw error;
   }
 };
@@ -217,6 +332,7 @@ module.exports = {
   getAllTransactionPaymentPaid,
   sumIncomeReport,
   sumExpenseReport,
+  getAllPayments,
   getAllTransaction,
   editReportMoney,
   deleteReportMoney,

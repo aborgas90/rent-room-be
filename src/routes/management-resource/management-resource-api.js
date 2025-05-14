@@ -35,9 +35,9 @@ const {
   handleGetAllTransaction,
   handleGetExpenseReport,
   handleGetIncomeReport,
-  handleGetAllTransactionTable,
   handleEditReportMoneyTransaction,
   handleDeleteReportMoneyTransaction,
+  handleGetAllPayments,
 } = require("../../controller/management-resource/money-report-management-controller");
 const managementApi = express.Router();
 
@@ -213,12 +213,6 @@ managementApi.get(
   handleGetExpenseReport
 );
 
-managementApi.get(
-  "/management/list-payment",
-  authenticationMiddleware,
-  authorizeRoles("super_admin", "admin"),
-  handleGetAllTransaction
-);
 
 //facisility
 managementApi.get(
@@ -227,12 +221,19 @@ managementApi.get(
   authorizeRoles("super_admin", "admin"),
   handleGetAllFacilities
 );
-
+//nampilin transaksi
 managementApi.get(
   "/management/report-money/transaction",
   authenticationMiddleware,
   authorizeRoles("super_admin", "admin"),
-  handleGetAllTransactionTable
+  handleGetAllTransaction
+);
+//nampilin + filter payment
+managementApi.get(
+  "/management/report-money/payment",
+  authenticationMiddleware,
+  authorizeRoles("super_admin", "admin"),
+  handleGetAllPayments
 );
 
 module.exports = managementApi;

@@ -3,9 +3,10 @@ const {
   sumIncomeReport,
   sumExpenseReport,
   getAllTransactionPaymentPaid,
-  getAllTransaction,
   editReportMoney,
   deleteReportMoney,
+  getAllPayments,
+  getAllTransaction,
 } = require("../../services/management-resource/money-report-management-service");
 
 const handleReportMoney = async (req, res, next) => {
@@ -115,13 +116,18 @@ const handleGetAllTransaction = async (req, res, next) => {
   try {
     const { status, page, limit } = req.query;
 
-    const result = await getAllTransactionPaymentPaid({
+    const result = await getAllTransaction({
       status,
       page,
       limit,
     });
 
-    res.status(200).json(result); // result sudah termasuk data dan pagination
+    res.status(200).json({
+      status: true,
+      message: "Get All Transaction Successful",
+      data: result.data,
+      pagination: result.pagination,
+    }); // result sudah termasuk data dan pagination
   } catch (error) {
     console.error("🚨 Error handler get Income Report:", error.message);
     res.status(500).json({
@@ -133,17 +139,34 @@ const handleGetAllTransaction = async (req, res, next) => {
   }
 };
 
-//buat  payment yang dah bayar
-const handleGetAllTransactionTable = async (req, res, next) => {
+const handleGetAllPayments = async (req, res, next) => {
   try {
-    const { type, page = 1, limit = 10 } = req.query;
-    const result = await getAllTransaction({ type, page, limit });
+    const {
+      search = "",
+      payment_method,
+      status,
+      month,
+      year,
+      page = 1,
+      limit = 10,
+    } = req.query;
+
+    const result = await getAllPayments({
+      search,
+      payment_method,
+      status,
+      month: parseInt(month),
+      year: parseInt(year),
+      page: parseInt(page),
+      limit: parseInt(limit),
+    });
+
     res.status(200).json(result);
   } catch (error) {
-    console.error("🚨 Error handler get Income Report:", error.message);
+    console.error("❌ Error handleGetAllPayments:", error.message);
     res.status(500).json({
       status_code: 500,
-      message: "Gagal memproses data transaction",
+      message: "Gagal memproses data pembayaran",
       error: error.message,
     });
     next(error);
@@ -155,7 +178,7 @@ module.exports = {
   handleGetAllTransaction,
   handleGetExpenseReport,
   handleGetIncomeReport,
-  handleGetAllTransactionTable,
+  handleGetAllPayments,
   handleEditReportMoneyTransaction,
   handleDeleteReportMoneyTransaction,
 };

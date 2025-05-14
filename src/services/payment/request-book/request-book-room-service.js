@@ -60,23 +60,65 @@ const requestBookRoomService = async (
       }),
     });
 
-    return result;
+    return {
+      roomId: result.room_id,
+      start_rent: result.start_rent,
+      end_rent: result.end_rent,
+    };
   } catch (error) {
     console.error("❌ Gagal memproses booking:", error.message);
     throw error;
   }
 };
 
-const getAllRequestBook = async () => {
+const getAllRequestBook = async (page = 1, pageSize = 10) => {
   try {
-    const result = await prismaClient.bookingRequest.findMany({
-      include: {
-        user: true,
-        room: true,
-      },
-    });
+    const skip = (page - 1) * pageSize;
 
-    return result;
+    const [data, total] = await Promise.all([
+      prismaClient.bookingRequest.findMany({
+        include: {
+          user: {
+            select: {
+              name: true,
+              email: true,
+            },
+          },
+          room: {
+            select: {
+              room_number: true,
+            },
+          },
+        },
+        skip,
+        take: pageSize,
+        orderBy: {
+          created_at: "desc",
+        },
+      }),
+      prismaClient.bookingRequest.count(),
+    ]);
+
+    const formatted = data.map((item) => ({
+      id: item.id,
+      user_name: item.user?.name,
+      user_email: item.user?.email,
+      room_number: item.room?.room_number,
+      start_rent: item.start_rent,
+      end_rent: item.end_rent,
+      status: item.status,
+      notes: item.notes,
+    }));
+
+    return {
+      data: formatted,
+      pagination: {
+        total,
+        page,
+        pageSize,
+        totalPages: Math.ceil(total / pageSize),
+      },
+    };
   } catch (error) {
     console.error("❌ Gagal mendapatkan semua request book:", error.message);
     throw error;
@@ -186,10 +228,85 @@ const getApprovedBookingDetail = async (room_id, user_id) => {
   };
 };
 
+const getRequestBookingPendingApproval = async (page = 1, pageSize = 10) => {
+  try {
+    const skip = (page - 1) * pageSize;
+
+    const [data, total] = await Promise.all([
+      prismaClient.bookingRequest.findMany({
+        where: {
+          status: "PENDING_APPROVAL",
+        },
+        include: {
+          room: {
+            select: {
+              room_number: true,
+            },
+          },
+          user: {
+            select: {
+              name: true,
+              email: true,
+              telephone: true,
+            },
+          },
+        },
+        skip,
+        take: pageSize,
+        orderBy: {
+          created_at: "desc",
+        },
+      }),
+
+      prismaClient.bookingRequest.count({
+        where: {
+          status: "PENDING_APPROVAL",
+        },
+      }),
+    ]);
+
+    const formatted = data.map((item) => ({
+      id: item.id,
+      user_id: item.user_id,
+      user_name: item.user?.name || "Unknown",
+      user_email: item.user?.email || "-",
+      telephone: item.user?.telephone || "-",
+      room_id: item.room_id,
+      room_number: item.room?.room_number || "-",
+      start_rent: item.start_rent,
+      end_rent: item.end_rent,
+      status: item.status,
+      created_at: item.created_at,
+      note: item.notes,
+    }));
+
+    return {
+      data: formatted,
+      pagination: {
+        total,
+        page,
+        pageSize,
+        totalPages: Math.ceil(total / pageSize),
+      },
+    };
+  } catch (error) {
+    console.error(
+      "❌ Error getting paginated booking requests:",
+      error.message
+    );
+    return {
+      status: false,
+      message: "Failed to fetch paginated booking requests",
+      error: error.message,
+    };
+  }
+};
+
 module.exports = {
   requestBookRoomService,
   getAllRequestBook,
   actionApproveRequestBook,
   rejectBookingRequest,
   getApprovedBookingDetail,
+  getRequestBookingPendingApproval,
 };

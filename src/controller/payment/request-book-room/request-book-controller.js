@@ -5,10 +5,11 @@ const {
   getAllRequestBook,
   rejectBookingRequest,
   getApprovedBookingDetail,
+  getRequestBookingPendingApproval,
 } = require("../../../services/payment/request-book/request-book-room-service");
 const handlerRequestBookRoom = async (req, res, next) => {
   const { user_id } = req.user;
-  const { room_id, start_rent, end_rent } = req.body;
+  const { roomId, start_rent, end_rent } = req.body;
 
   try {
     const user = await prismaClient.user.findUnique({ where: { user_id } });
@@ -19,7 +20,9 @@ const handlerRequestBookRoom = async (req, res, next) => {
       });
     }
 
-    const room = await prismaClient.room.findUnique({ where: { room_id } });
+    const room = await prismaClient.room.findUnique({
+      where: { room_id: roomId },
+    });
     if (!room || room.status !== "TERSEDIA") {
       return res.status(400).json({
         status: false,
@@ -58,13 +61,19 @@ const handlerRequestBookRoom = async (req, res, next) => {
 
 const handlerGetAllRequestBook = async (req, res, next) => {
   try {
-    const result = await getAllRequestBook();
+    const page = parseInt(req.query.page || "1");
+    const pageSize = parseInt(req.query.pageSize || "10");
+
+    const { data, pagination } = await getAllRequestBook(page, pageSize);
 
     res.status(200).json({
+      status: true,
       message: "Get all request book room successfully",
-      data: result,
+      data,
+      pagination,
     });
   } catch (error) {
+    console.error("❌ Error in handlerGetAllRequestBook:", error.message);
     next(error);
   }
 };
@@ -149,6 +158,28 @@ const handlerGetApprovedBookingDetail = async (req, res, next) => {
   }
 };
 
+const handlerGetRequestBookPending = async (req, res, next) => {
+  try {
+    const page = parseInt(req.query.page || "1");
+    const pageSize = parseInt(req.query.pageSize || "10");
+
+    const { data, pagination } = await getRequestBookingPendingApproval(
+      page,
+      pageSize
+    );
+
+    return res.status(200).json({
+      status: true,
+      message: "Successful to get data pending approval",
+      data,
+      pagination,
+    });
+  } catch (error) {
+    console.error("Gagal ambil pending booking status", error.message);
+    next(error);
+  }
+};
+
 module.exports = {
   handlerRequestBookRoom,
   handlerGetAllRequestBook,
@@ -156,4 +187,5 @@ module.exports = {
   handleActionRejectRequestBook,
   handleActionRejectRequestBook,
   handlerGetApprovedBookingDetail,
+  handlerGetRequestBookPending,
 };

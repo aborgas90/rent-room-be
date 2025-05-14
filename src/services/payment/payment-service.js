@@ -58,7 +58,7 @@ const createSnapPayment = async ({ user_id, roomId, start_rent, end_rent }) => {
       },
     ],
     callbacks: {
-      finish: `${process.env.APP_FRONTEND_URL}/dashboard/pembayaran-berhasil?order_id=${orderId}`,
+      finish: `${process.env.APP_FRONTEND_URL}/dashboard/payment/success?order_id=${orderId}`,
     },
   };
 
@@ -140,10 +140,8 @@ setInterval(unlockExpiredRooms, 60 * 60 * 1000);
 //get midtrans status data
 const getTransactionStatusOrderId = async ({ order_id }) => {
   try {
-    let payment = await prismaClient.payment.findUnique({
-      where: {
-        midtrans_order_id: order_id,
-      },
+    const payment = await prismaClient.payment.findFirst({
+      where: { midtrans_order_id: order_id },
     });
 
     if (!payment) {
@@ -152,7 +150,16 @@ const getTransactionStatusOrderId = async ({ order_id }) => {
 
     const statusResponse = await coreApi.transaction.status(order_id);
 
-    console.log("📦 Status transaksi Midtrans:", statusResponse);
+    // ✅ Update DB agar sinkron
+    await prismaClient.payment.update({
+      where: { midtrans_order_id: order_id },
+      data: {
+        status: statusResponse.transaction_status.toUpperCase(),
+        settlementTime: statusResponse.settlement_time
+          ? new Date(statusResponse.settlement_time)
+          : undefined,
+      },
+    });
 
     return statusResponse;
   } catch (error) {
@@ -225,21 +232,51 @@ const updatePaymentStatus = async (notification) => {
       where: { midtrans_order_id: order_id },
     });
 
-    if (!payment || payment.status === "SUCCESS") return;
-    if (["PAID", "SUCCESS"].includes(payment.status)) {
-      console.log("ℹ️ Webhook ignored: already paid.");
+    if (!payment) {
+      console.warn(`❌ Tidak ditemukan payment untuk order_id: ${order_id}`);
+      return;
+    }
+
+    // Hindari update jika status akhir sudah tercapai
+    const finalStatuses = [
+      "PAID",
+      "SUCCESS",
+      "EXPIRED",
+      "CANCELLED",
+      "FAILED",
+      "REFUNDED",
+    ];
+    if (finalStatuses.includes(payment.status)) {
+      console.log(
+        `ℹ️ Webhook ignored: status sudah final (${payment.status}).`
+      );
       return { alreadyProcessed: true };
     }
 
     let newStatus = "PENDING";
 
     if (transaction_status === "capture") {
-      newStatus = fraud_status === "challenge" ? "CHALLENGE" : "SUCCESS";
+      newStatus = fraud_status === "challenge" ? "CHALLENGE" : "PAID";
     } else if (transaction_status === "settlement") {
       newStatus = "PAID";
-    } else if (["cancel", "deny", "expire"].includes(transaction_status)) {
+    } else if (transaction_status === "expire") {
+      newStatus = "EXPIRED";
+    } else if (transaction_status === "cancel") {
+      newStatus = "CANCELLED";
+    } else if (transaction_status === "deny") {
       newStatus = "FAILED";
+    } else if (transaction_status === "refund") {
+      newStatus = "REFUNDED";
+    } else if (transaction_status === "expire") {
+      newStatus = "EXPIRED";
     }
+
+    console.log(
+      "📦 Status diterima:",
+      transaction_status,
+      "→ Akan jadi:",
+      newStatus
+    );
 
     const convertTime = settlement_time
       ? new Date(settlement_time).toISOString()
@@ -253,6 +290,10 @@ const updatePaymentStatus = async (notification) => {
         settlementTime: convertTime,
       },
     });
+
+    console.log(
+      `✅ Status transaksi "${order_id}" berhasil diupdate ke: ${newStatus}`
+    );
 
     if (newStatus === "PAID") {
       await prismaClient.room.update({
@@ -274,16 +315,22 @@ const updatePaymentStatus = async (notification) => {
       await updateUserRole(payment.user_id, "MEMBER");
 
       console.log(`🏠 Kamar ${payment.room_id} di-set sebagai TERSEWA.`);
-    } else if (newStatus === "FAILED") {
+    } else if (
+      newStatus === "FAILED" ||
+      newStatus === "EXPIRED" ||
+      newStatus === "CANCELLED" ||
+      newStatus === "REFUNDED"
+    ) {
       await prismaClient.room.update({
         where: { room_id: payment.room_id },
-        data: { status: "AVAILABLE", locked_at: null },
+        data: { status: "TERSEDIA", locked_at: null },
       });
 
       console.log(
         `Room ${payment.room_id} is now available again due to failed payment.`
       );
     }
+    
   } catch (error) {
     console.error("❌ Gagal mendapatkan mengupdate:", error.message);
     throw error;

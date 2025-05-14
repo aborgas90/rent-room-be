@@ -9,7 +9,6 @@ const {
 } = require("../../controller/user/report/report-controller");
 const {
   handlerCreatePayment,
-  handleGetIdRoom,
   handleGetIdRoomBooking,
   handlerGetBookingStatus,
 } = require("../../controller/payment/payment-controller");
@@ -20,8 +19,12 @@ const {
   handleActionApproveRequestBook,
   handleActionRejectRequestBook,
   handlerGetApprovedBookingDetail,
+  handlerGetRequestBookPending,
 } = require("../../controller/payment/request-book-room/request-book-controller");
 const { user } = require("../../prisma-client");
+const {
+  handlerGetTransactionPaymentOnUser,
+} = require("../../controller/user/transaction/transaction-controller");
 const userApi = express.Router();
 
 userApi.post(
@@ -61,6 +64,13 @@ userApi.get(
   handlerGetAllRequestBook
 );
 
+userApi.get(
+  "/booking-list/pending-approval",
+  authenticationMiddleware,
+  authorizeRoles("super_admin", "admin"),
+  handlerGetRequestBookPending
+);
+
 userApi.post(
   "/booking-request/approve/:request_id",
   authenticationMiddleware,
@@ -94,6 +104,13 @@ userApi.get(
   authenticationMiddleware,
   authorizeRoles("super_admin", "admin", "member", "out_member"),
   handlerGetApprovedBookingDetail
+);
+
+userApi.get(
+  "/transaction-history/user",
+  authenticationMiddleware,
+  authorizeRoles("super_admin", "admin", "member", "out_member"),
+  handlerGetTransactionPaymentOnUser
 );
 
 module.exports = {
