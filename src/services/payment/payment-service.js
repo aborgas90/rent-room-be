@@ -3,6 +3,9 @@ const prismaClient = require("../../prisma-client");
 require("dotenv").config({ path: [".env"] });
 const { snap, coreApi } = require("../../config/midtrans.config");
 const { ResponseError } = require("../../error/error-response");
+const {
+  sendPaymentStatusNotification,
+} = require("../scheduler/paymentScheduler");
 
 //create payment
 const createSnapPayment = async ({ user_id, roomId, start_rent, end_rent }) => {
@@ -111,31 +114,6 @@ const createSnapPayment = async ({ user_id, roomId, start_rent, end_rent }) => {
 
   return result;
 };
-
-//unlocking room when user not payment schedule
-const unlockExpiredRooms = async () => {
-  const lockTimeout = 60 * 60 * 1000;
-
-  const roomToUnlock = await prismaClient.room.findMany({
-    where: {
-      status: "TERKUNCI",
-      locked_at: {
-        lt: new Date(Date.now() - lockTimeout),
-      },
-    },
-  });
-
-  for (const room of roomToUnlock) {
-    await prismaClient.room.update({
-      where: { room_id: room.room_id },
-      data: { status: "TERSEDIA", locked_at: null },
-    });
-
-    console.log(`🔓 Room ${room.room_id} is now available.`);
-  }
-};
-
-setInterval(unlockExpiredRooms, 60 * 60 * 1000);
 
 //get midtrans status data
 const getTransactionStatusOrderId = async ({ order_id }) => {
@@ -314,6 +292,14 @@ const updatePaymentStatus = async (notification) => {
 
       await updateUserRole(payment.user_id, "MEMBER");
 
+      const user = await prismaClient.user.findUnique({
+        where: { user_id: payment.user_id },
+      });
+      const room = await prismaClient.room.findUnique({
+        where: { room_id: payment.room_id },
+      });
+
+      await sendPaymentStatusNotification(user, room, newStatus);
       console.log(`🏠 Kamar ${payment.room_id} di-set sebagai TERSEWA.`);
     } else if (
       newStatus === "FAILED" ||
@@ -325,59 +311,24 @@ const updatePaymentStatus = async (notification) => {
         where: { room_id: payment.room_id },
         data: { status: "TERSEDIA", locked_at: null },
       });
+      const user = await prismaClient.user.findUnique({
+        where: { user_id: payment.user_id },
+      });
+      const room = await prismaClient.room.findUnique({
+        where: { room_id: payment.room_id },
+      });
+
+      await sendPaymentStatusNotification(user, room, newStatus);
 
       console.log(
         `Room ${payment.room_id} is now available again due to failed payment.`
       );
     }
-    
   } catch (error) {
     console.error("❌ Gagal mendapatkan mengupdate:", error.message);
     throw error;
   }
 };
-
-//schedule expired end room user
-const expireFinishedRentals = async () => {
-  const now = new Date();
-  console.log(
-    `⏰ [${new Date().toISOString()}] Mengecek kamar yang masa sewanya habis...`
-  );
-
-  // Cari semua payment yang sudah dibayar dan masa sewanya habis
-  const expiredPayments = await prismaClient.payment.findMany({
-    where: {
-      status: "PAID",
-      end_rent: {
-        lt: now,
-      },
-    },
-    include: {
-      room: true,
-    },
-  });
-
-  console.log(expiredPayments, "query");
-
-  for (const payment of expiredPayments) {
-    const roomId = payment.room_id;
-
-    // Ubah status kamar jadi TERSEDIA
-    await prismaClient.room.update({
-      where: { room_id: roomId },
-      data: {
-        status: "TERSEDIA",
-        tenant_id: null,
-      },
-    });
-
-    console.log(
-      `⏰ Masa sewa kamar ${roomId} habis. Kamar jadi tersedia kembali.`
-    );
-  }
-};
-
-setInterval(expireFinishedRentals, 60 * 60 * 1000);
 
 const getRoomIdTransaction = async (roomId) => {
   try {
@@ -453,6 +404,61 @@ const hasPendingOrApprovedRequest = async (room_id, user_id) => {
   return !!existingRequest;
 };
 
+const cekStatusPendingMidtransLast = async ({ user_id }) => {
+  try {
+    const oneHourAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
+
+    const result = await prismaClient.payment.findFirst({
+      where: {
+        user_id,
+        status: "PENDING",
+        createdAt: { gte: oneHourAgo },
+      },
+      orderBy: {
+        createdAt: "desc", // Ambil transaksi terbaru
+      },
+    });
+
+    return result;
+  } catch (error) {
+    console.error("❌ Gagal cek Status Pending:", error.message);
+    throw error;
+  }
+};
+
+async function getInvoiceByOrderId(orderId, user_id) {
+  const tx = await prismaClient.payment.findUnique({
+    where: { midtrans_order_id: orderId },
+    include: {
+      user: true,
+      room: true,
+    },
+  });
+
+  if (!tx) {
+    throw new Error("Transaksi tidak ditemukan");
+  }
+
+  if (tx.user_id !== user_id) {
+    const err = new Error("Akses ditolak");
+    err.statusCode = 403;
+    throw err;
+  }
+
+  return {
+    midtrans_order_id: tx.midtrans_order_id,
+    user_name: tx.user.name,
+    email: tx.user.email,
+    room_number: tx.room.room_number,
+    payment_method: tx.payment_method,
+    status: tx.status,
+    amount: tx.amount,
+    start_rent: tx.start_rent,
+    end_rent: tx.end_rent,
+    settlementTime: tx.settlementTime,
+  };
+}
+
 module.exports = {
   createSnapPayment,
   updatePaymentStatus,
@@ -460,4 +466,6 @@ module.exports = {
   getRoomIdTransaction,
   getBookingStatus,
   hasPendingOrApprovedRequest,
+  cekStatusPendingMidtransLast,
+  getInvoiceByOrderId,
 };

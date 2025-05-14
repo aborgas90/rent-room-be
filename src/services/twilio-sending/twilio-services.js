@@ -34,7 +34,7 @@ const TwilioService = {
 
   /**
    * Send WhatsApp Message
-   * @param {string} to - Recipient phone number (e.g. +628123456789)
+   * @param {string} to - Recipient phone number (e.g. whatsapp:+628123456789)
    * @param {string} message - WhatsApp message content
    */
   sendWhatsApp: async (to, message) => {
@@ -42,32 +42,12 @@ const TwilioService = {
       const result = await client.messages.create({
         body: message,
         from: TWILIO_WHATSAPP_NUMBER,
-        to: `whatsapp:${to}`,
+        to,
       });
       console.log("✅ WhatsApp sent:", result.sid);
       return result;
     } catch (error) {
       console.error("❌ Failed to send WhatsApp:", error.message);
-      throw error;
-    }
-  },
-
-  /**
-   * Make Voice Call
-   * @param {string} to - Recipient phone number
-   * @param {string} url - TwiML Bin or XML endpoint for voice call content
-   */
-  makeCall: async (to, url = "http://demo.twilio.com/docs/voice.xml") => {
-    try {
-      const result = await client.calls.create({
-        to,
-        from: TWILIO_PHONE_NUMBER,
-        url,
-      });
-      console.log("📞 Call initiated:", result.sid);
-      return result;
-    } catch (error) {
-      console.error("❌ Failed to make call:", error.message);
       throw error;
     }
   },

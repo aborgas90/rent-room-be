@@ -90,13 +90,15 @@ const createUser = async ({
 }) => {
   try {
     const passwordHash = await bcrypt.hash(password, 10);
+    const formattedPhone = formatIndonesianPhone(telephone); // <- tambahkan ini
+
     const createUser = await prismaClient.user.create({
       data: {
         user_id,
         name,
         email,
         password: passwordHash,
-        telephone,
+        telephone: formattedPhone,
         address,
       },
     });
@@ -112,6 +114,18 @@ const createUser = async ({
   } catch (error) {
     throw error;
   }
+};
+
+const formatIndonesianPhone = (phone) => {
+  // ubah 08xxx → +628xxx
+  if (phone.startsWith("08")) {
+    return phone.replace(/^08/, "+628");
+  }
+  // jika sudah +62, biarkan
+  if (phone.startsWith("+62")) {
+    return phone;
+  }
+  return phone; // fallback (untuk debugging)
 };
 
 const findUserByEmail = async ({ email }) => {

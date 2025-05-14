@@ -11,6 +11,8 @@ const {
   handlerCreatePayment,
   handleGetIdRoomBooking,
   handlerGetBookingStatus,
+  handlerGetPaymentStatusLast,
+  handlerGetInvoice,
 } = require("../../controller/payment/payment-controller");
 const upload = require("../../config/multer.config");
 const {
@@ -113,6 +115,19 @@ userApi.get(
   handlerGetTransactionPaymentOnUser
 );
 
+userApi.get(
+  "/payment/last-status",
+  authenticationMiddleware,
+  authorizeRoles("super_admin", "admin", "member", "out_member"),
+  handlerGetPaymentStatusLast
+);
+
+userApi.get(
+  "/payment/invoice/:orderId",
+  authenticationMiddleware,
+  authorizeRoles("super_admin", "admin", "member", "out_member"),
+  handlerGetInvoice
+);
 module.exports = {
   userApi,
 };

@@ -5,6 +5,8 @@ const {
   getRoomIdTransaction,
   getBookingStatus,
   hasPendingOrApprovedRequest,
+  cekStatusPendingMidtransLast,
+  getInvoiceByOrderId,
 } = require("../../services/payment/payment-service");
 const crypto = require("crypto");
 
@@ -179,10 +181,47 @@ const handlerGetBookingStatus = async (req, res, next) => {
   }
 };
 
+const handlerGetPaymentStatusLast = async (req, res, next) => {
+  try {
+    const { user_id } = req.user;
+    const result = await cekStatusPendingMidtransLast(parseInt(user_id, 10));
+
+    return res.status(200).json({
+      status: true,
+      message: "Get Status Last Payment Successful",
+      data: result || [],
+    });
+  } catch (error) {
+    console.error("Error handlerGetBookingStatus: ", error);
+    next(error);
+  }
+};
+
+const handlerGetInvoice = async (req, res) => {
+  const { orderId } = req.params;
+  const { user_id } = req.user;
+
+  try {
+    const invoice = await getInvoiceByOrderId(orderId, parseInt(user_id, 10));
+    res.json({
+      status: true,
+      message: "Get Success to Get Invoice Data",
+      data: invoice,
+    });
+  } catch (error) {
+    console.error("❌ Invoice error:", error.message);
+    res
+      .status(error.statusCode || 500)
+      .json({ status: false, message: error.message });
+  }
+};
+
 module.exports = {
   handlerCreatePayment,
   handlerMidtransNotification,
   handleGetTransactionOrderId,
   handleGetIdRoomBooking,
   handlerGetBookingStatus,
+  handlerGetPaymentStatusLast,
+  handlerGetInvoice,
 };

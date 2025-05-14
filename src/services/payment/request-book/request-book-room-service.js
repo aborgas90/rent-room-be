@@ -3,6 +3,10 @@ const { sendEmail } = require("../../../utils/emailSender");
 const {
   bookingRequestEmail,
 } = require("../../../utils/templates/bookingRequestEmail");
+const {
+  sendBookingDecisionNotification,
+} = require("../../scheduler/paymentScheduler");
+const TwilioService = require("../../twilio-sending/twilio-services");
 const { createSnapPayment } = require("../payment-service");
 
 //function requestBookRoomService()
@@ -59,6 +63,15 @@ const requestBookRoomService = async (
         }),
       }),
     });
+
+    await TwilioService.sendWhatsApp(
+      process.env.TWILIO_ADMIN_PHONE_NUMBER,
+      `📢 Permintaan Booking Masuk!\n\n📍 Kamar: ${
+        room.room_number
+      }\n👤 Dari: ${user.name}\n🗓️ Tgl: ${result.start_rent.toLocaleDateString(
+        "id-ID"
+      )} - ${result.end_rent.toLocaleDateString("id-ID")}`
+    );
 
     return {
       roomId: result.room_id,
@@ -177,6 +190,10 @@ const actionApproveRequestBook = async (request, admin_id) => {
 const rejectBookingRequest = async ({ request_id, admin_id, notes }) => {
   const request = await prismaClient.bookingRequest.findUnique({
     where: { id: request_id },
+    include: {
+      user: true,
+      room: true,
+    },
   });
 
   if (!request || request.status !== "PENDING_APPROVAL") {
@@ -192,6 +209,21 @@ const rejectBookingRequest = async ({ request_id, admin_id, notes }) => {
       notes: notes || "Request rejected by admin.",
     },
   });
+
+  console.log("LOgg", request.user?.telephone, request.room?.room_number);
+
+  if (request.user?.telephone && request.room?.room_number) {
+    try {
+      await sendBookingDecisionNotification(
+        request.user,
+        request.room,
+        false,
+        notes
+      );
+    } catch (err) {
+      console.error("❌ Gagal kirim notifikasi penolakan:", err.message);
+    }
+  }
 
   return updated;
 };

@@ -9,6 +9,7 @@ const { userApi } = require("./routes/user/user-api");
 const apiRouter = express.Router();
 const path = require("path");
 const cookieParser = require("cookie-parser");
+require("./services/scheduler/paymentScheduler");
 
 app.use(
   cors({
@@ -28,6 +29,29 @@ app.use("/api/v1", apiRouter);
 apiRouter.use(publicRouter);
 apiRouter.use(managementApi);
 apiRouter.use(userApi);
+
+const logErrorToFile = (context, err) => {
+  const logDir = path.join(__dirname, "logs");
+  if (!fs.existsSync(logDir)) fs.mkdirSync(logDir);
+  const logFile = path.join(logDir, "app-errors.log");
+  const timestamp = new Date().toISOString();
+  const content = `[${timestamp}] [${context}] ${err.message}\n`;
+  fs.appendFileSync(logFile, content);
+};
+
+// ⬇️ Tambahkan global handler
+process.on("uncaughtException", (err) => {
+  console.error("💥 Uncaught Exception:", err);
+  logErrorToFile("UncaughtException", err);
+});
+
+process.on("unhandledRejection", (reason) => {
+  console.error("💥 Unhandled Rejection:", reason);
+  logErrorToFile(
+    "UnhandledRejection",
+    reason instanceof Error ? reason : new Error(String(reason))
+  );
+});
 
 app.get("/", (req, res) => {
   res.send("Hello Dunia Gelap!");
