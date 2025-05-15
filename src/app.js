@@ -9,6 +9,9 @@ const { userApi } = require("./routes/user/user-api");
 const apiRouter = express.Router();
 const path = require("path");
 const cookieParser = require("cookie-parser");
+const {
+  dashboardApi,
+} = require("./routes/management-resource/dashboard/dashboard-resource-api");
 require("./services/scheduler/paymentScheduler");
 
 app.use(
@@ -29,6 +32,7 @@ app.use("/api/v1", apiRouter);
 apiRouter.use(publicRouter);
 apiRouter.use(managementApi);
 apiRouter.use(userApi);
+apiRouter.use(dashboardApi);
 
 const logErrorToFile = (context, err) => {
   const logDir = path.join(__dirname, "logs");
@@ -54,7 +58,7 @@ process.on("unhandledRejection", (reason) => {
 });
 
 app.get("/", (req, res) => {
-  res.send("Hello Dunia Gelap!");
+  res.send("Hello Dunia Gelap dontol!");
 });
 
 module.exports = app;

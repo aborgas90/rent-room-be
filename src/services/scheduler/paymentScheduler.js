@@ -68,15 +68,15 @@ cron.schedule("0 8 * * *", async () => {
 });
 
 // 🔔 Notifikasi status pembayaran
-const sendPaymentStatusNotification = async (user, room, status) => {
+const sendPaymentStatusNotification = async (user, room, status, payment) => {
   const statusMessages = {
     PAID: `✅ Pembayaran berhasil!\n\nTerima kasih ${
       user.name
     }, pembayaran untuk kamar ${
       room.room_number
-    } telah diterima. Masa sewa aktif sampai ${new Date().toLocaleDateString(
-      "id-ID"
-    )}.`,
+    } telah diterima. Masa sewa aktif sampai ${new Date(
+      payment.end_rent
+    ).toLocaleDateString("id-ID")}.`,
     FAILED: `❌ Pembayaran gagal\n\nHalo ${user.name}, pembayaran untuk kamar ${room.room_number} gagal diproses. Silakan coba kembali.`,
     EXPIRED: `⌛ Pembayaran kadaluarsa\n\nHalo ${user.name}, pembayaran untuk kamar ${room.room_number} telah kadaluarsa. Silakan lakukan booking ulang jika masih berminat.`,
   };

@@ -14,6 +14,7 @@ const handlerCreatePayment = async (req, res, next) => {
   try {
     const { user_id } = req.user;
     const { roomId, start_rent, end_rent } = req.body;
+    
 
     const payment = await createSnapPayment({
       user_id,

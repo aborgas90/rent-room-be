@@ -14,6 +14,20 @@ const createSnapPayment = async ({ user_id, roomId, start_rent, end_rent }) => {
     where: { room_id: roomId },
   });
 
+  const userRoom = await prismaClient.room.findFirst({
+    where: {
+      tenant_id: user_id,
+      status: "TERSEWA",
+    },
+  });
+
+  if (userRoom) {
+    throw new ResponseError(
+      409,
+      `Anda masih menyewa kamar nomor ${userRoom.room_number}. Tidak dapat menyewa lebih dari satu kamar.`
+    );
+  }
+
   if (!user || !room) {
     throw new Error("User atau kamar tidak ditemukan");
   }
@@ -188,6 +202,25 @@ const updateUserRole = async (user_id, new_role = "MEMBER") => {
 };
 
 //update sync midtrans to db
+const mapMidtransStatus = (transaction_status, fraud_status) => {
+  switch (transaction_status) {
+    case "capture":
+      return fraud_status === "challenge" ? "CHALLENGE" : "PAID";
+    case "settlement":
+      return "PAID";
+    case "expire":
+      return "EXPIRED";
+    case "cancel":
+      return "CANCELLED";
+    case "deny":
+      return "FAILED";
+    case "refund":
+      return "REFUNDED";
+    default:
+      return "PENDING";
+  }
+};
+
 const updatePaymentStatus = async (notification) => {
   try {
     const {
@@ -215,7 +248,6 @@ const updatePaymentStatus = async (notification) => {
       return;
     }
 
-    // Hindari update jika status akhir sudah tercapai
     const finalStatuses = [
       "PAID",
       "SUCCESS",
@@ -231,23 +263,7 @@ const updatePaymentStatus = async (notification) => {
       return { alreadyProcessed: true };
     }
 
-    let newStatus = "PENDING";
-
-    if (transaction_status === "capture") {
-      newStatus = fraud_status === "challenge" ? "CHALLENGE" : "PAID";
-    } else if (transaction_status === "settlement") {
-      newStatus = "PAID";
-    } else if (transaction_status === "expire") {
-      newStatus = "EXPIRED";
-    } else if (transaction_status === "cancel") {
-      newStatus = "CANCELLED";
-    } else if (transaction_status === "deny") {
-      newStatus = "FAILED";
-    } else if (transaction_status === "refund") {
-      newStatus = "REFUNDED";
-    } else if (transaction_status === "expire") {
-      newStatus = "EXPIRED";
-    }
+    const newStatus = mapMidtransStatus(transaction_status, fraud_status);
 
     console.log(
       "📦 Status diterima:",
@@ -273,6 +289,13 @@ const updatePaymentStatus = async (notification) => {
       `✅ Status transaksi "${order_id}" berhasil diupdate ke: ${newStatus}`
     );
 
+    const user = await prismaClient.user.findUnique({
+      where: { user_id: payment.user_id },
+    });
+    const room = await prismaClient.room.findUnique({
+      where: { room_id: payment.room_id },
+    });
+
     if (newStatus === "PAID") {
       await prismaClient.room.update({
         where: { room_id: payment.room_id },
@@ -281,7 +304,7 @@ const updatePaymentStatus = async (notification) => {
 
       await prismaClient.transaction.create({
         data: {
-          admin_id: 2,
+          admin_id: 2, // bisa diganti jika dinamis
           payment_id: payment.payment_id,
           amount: payment.amount,
           type: "PEMASUKAN",
@@ -291,41 +314,23 @@ const updatePaymentStatus = async (notification) => {
       });
 
       await updateUserRole(payment.user_id, "MEMBER");
-
-      const user = await prismaClient.user.findUnique({
-        where: { user_id: payment.user_id },
-      });
-      const room = await prismaClient.room.findUnique({
-        where: { room_id: payment.room_id },
-      });
-
-      await sendPaymentStatusNotification(user, room, newStatus);
+      await sendPaymentStatusNotification(user, room, newStatus, payment);
       console.log(`🏠 Kamar ${payment.room_id} di-set sebagai TERSEWA.`);
     } else if (
-      newStatus === "FAILED" ||
-      newStatus === "EXPIRED" ||
-      newStatus === "CANCELLED" ||
-      newStatus === "REFUNDED"
+      ["FAILED", "EXPIRED", "CANCELLED", "REFUNDED"].includes(newStatus)
     ) {
       await prismaClient.room.update({
         where: { room_id: payment.room_id },
         data: { status: "TERSEDIA", locked_at: null },
       });
-      const user = await prismaClient.user.findUnique({
-        where: { user_id: payment.user_id },
-      });
-      const room = await prismaClient.room.findUnique({
-        where: { room_id: payment.room_id },
-      });
 
-      await sendPaymentStatusNotification(user, room, newStatus);
-
+      await sendPaymentStatusNotification(user, room, newStatus, payment);
       console.log(
-        `Room ${payment.room_id} is now available again due to failed payment.`
+        `Room ${payment.room_id} is now available again due to ${newStatus}.`
       );
     }
   } catch (error) {
-    console.error("❌ Gagal mendapatkan mengupdate:", error.message);
+    console.error("❌ Gagal mengupdate:", error.message);
     throw error;
   }
 };
