@@ -14,6 +14,6 @@ if (process.env.NODE_ENV === "development") {
   console.log(`Test environment detected. NODE_ENV = ${process.env.NODE_ENV}`);
 }
 
-app.listen(port, () => {
+app.listen(port, "0.0.0.0", () => {
   console.log(`🌍 App listening on port ${port}`);
 });

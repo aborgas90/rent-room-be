@@ -5,50 +5,31 @@ const { complaintEmail } = require("../../../utils/templates/complaintEmail");
 const createReport = async ({
   user_id,
   title,
-  filename,
+  fileUrl,
   description,
   category,
   owner_name,
 }) => {
-  try {
-    const Room = await prismaClient.room.findUnique({
-      where: {
-        tenant_id: user_id,
-      },
-    });
+  const Room = await prismaClient.room.findUnique({
+    where: { tenant_id: user_id },
+  });
 
-    const room_number = Room?.room_number || null;
+  const room_number = Room?.room_number || null;
 
-    const actionReport = await prismaClient.problemReport.create({
-      data: {
-        title,
-        filename: `uploads/image/${filename}` || null,
-        description,
-        category,
-        user_id,
-        status: "PENDING",
-        owner_name,
-        room_number: room_number,
-      },
-    });
+  const report = await prismaClient.problemReport.create({
+    data: {
+      title,
+      filename: fileUrl, // full GCS URL
+      description,
+      category,
+      user_id,
+      status: "PENDING",
+      owner_name,
+      room_number,
+    },
+  });
 
-    await sendEmail({
-      to: process.env.EMAIL_USER,
-      subject: "🚨 Pengaduan Masuk",
-      html: complaintEmail({
-        userName: owner_name,
-        category,
-        description,
-        roomNumber: room_number,
-        filename: `${process.env.APP_PUBLIC_BE_URL}/${actionReport?.filename}`,
-      }),
-    });
-
-    return actionReport;
-  } catch (error) {
-    console.log(error);
-    throw error;
-  }
+  return report;
 };
 
 const getReportUser = async ({ user_id }) => {

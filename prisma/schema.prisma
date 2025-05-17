@@ -6,7 +6,6 @@
 
 generator client {
   provider = "prisma-client-js"
-  output   = "./node_modules/@prisma/client"
 }
 
 datasource db {
@@ -32,12 +31,16 @@ model User {
   report           ProblemReport[]
   approvedRequests BookingRequest[] @relation("ApprovedRequests")
   BookingRequest   BookingRequest[]
+
+  @@map("user")
 }
 
 model Roles {
   roles_id   Int          @id @default(autoincrement())
   roles_name String       @unique
   User_Roles User_Roles[]
+
+  @@map("roles")
 }
 
 model User_Roles {
@@ -48,6 +51,7 @@ model User_Roles {
   Role          Roles @relation(fields: [roles_id], references: [roles_id])
 
   @@unique([user_id, roles_id])
+  @@map("user_roles")
 }
 
 model Room {
@@ -70,6 +74,8 @@ model Room {
   payments       Payment[]        @relation("RoomPayments")
   roomFacilities RoomFacility[]
   BookingRequest BookingRequest[]
+
+  @@map("room")
 }
 
 enum RoomStatus {
@@ -108,6 +114,8 @@ model Payment {
 
   transactions   Transaction[]   @relation("PaymentTransactions")
   BookingRequest BookingRequest?
+
+  @@map("payment")
 }
 
 enum PaymentStatus {
@@ -133,6 +141,8 @@ model Transaction {
   updatedAt        DateTime        @default(now()) @updatedAt
   admin            User            @relation("AdminTransactions", fields: [admin_id], references: [user_id])
   payment          Payment?        @relation("PaymentTransactions", fields: [payment_id], references: [payment_id])
+
+  @@map("transaction")
 }
 
 enum TransactionType {
@@ -144,6 +154,8 @@ model Facility {
   facility_id     Int            @id @default(autoincrement())
   facilities_name String
   roomFacilities  RoomFacility[]
+
+  @@map("facility")
 }
 
 model RoomFacility {
@@ -210,6 +222,8 @@ model BookingRequest {
   user    User     @relation(fields: [user_id], references: [user_id])
   room    Room     @relation(fields: [room_id], references: [room_id])
   payment Payment? @relation(fields: [payment_id], references: [payment_id])
+
+  @@map("bookingrequest")
 }
 
 enum BookingStatus {

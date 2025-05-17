@@ -66,6 +66,14 @@ const handleLogin = async (req, res, next) => {
       maxAge: 24 * 60 * 60 * 1000,
     });
 
+    //     res.cookie("token", token, {
+    //   httpOnly: true,
+    //   secure: true, // HARUS true karena frontend pakai HTTPS
+    //   sameSite: "None", // wajib kalau cross-origin supaya cookie terkirim
+    //   maxAge: 24 * 60 * 60 * 1000,
+    //   path: "/",
+    // });
+
     return res.status(200).json({
       status: 200,
       message: "Login Successful",

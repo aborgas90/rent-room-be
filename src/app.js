@@ -14,26 +14,42 @@ const {
 } = require("./routes/management-resource/dashboard/dashboard-resource-api");
 require("./services/scheduler/paymentScheduler");
 
+const fs = require("fs");
+
+// 🟡 Ambil dari env, pecah kalau ada banyak origin (dipisahkan koma)
+const allowedOrigins = ["http://localhost:3000" || APP_FRONTEND_URL];
+
 app.use(
   cors({
-    origin: process.env.APP_FRONTEND_URL,
+    origin: function (origin, callback) {
+      if (!origin || allowedOrigins.includes(origin)) {
+        callback(null, true);
+      } else {
+        callback(new Error("Not allowed by CORS"));
+      }
+    },
     credentials: true,
     methods: ["GET", "POST", "PUT", "DELETE", "PATCH"],
   })
 );
+
+app.options("*", cors());
 app.use(express.json({ extended: true }));
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
+
 app.use(
   "/uploads/image",
   express.static(path.join(__dirname, "uploads", "image"))
 );
+
 app.use("/api/v1", apiRouter);
 apiRouter.use(publicRouter);
 apiRouter.use(managementApi);
 apiRouter.use(userApi);
 apiRouter.use(dashboardApi);
 
+// ⬇️ Logging error
 const logErrorToFile = (context, err) => {
   const logDir = path.join(__dirname, "logs");
   if (!fs.existsSync(logDir)) fs.mkdirSync(logDir);
@@ -43,7 +59,6 @@ const logErrorToFile = (context, err) => {
   fs.appendFileSync(logFile, content);
 };
 
-// ⬇️ Tambahkan global handler
 process.on("uncaughtException", (err) => {
   console.error("💥 Uncaught Exception:", err);
   logErrorToFile("UncaughtException", err);

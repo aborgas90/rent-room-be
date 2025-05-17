@@ -1,23 +1,22 @@
-const {
-  getAllTransactionPaymentPaid,
-} = require("../../../services/management-resource/money-report-management-service");
+const { uploadFile } = require("../../../services/gcs/gcs-upload-service");
 const {
   createReport,
-  sumIncomeReport,
   getReportUser,
 } = require("../../../services/user/report/report-problem-service");
 
 const handleCreateReport = async (req, res, next) => {
-  const { user_id, name } = req.user;
-  const parseId = parseInt(user_id, 10);
   const { title, description, category } = req.body;
-  const filename = req.file?.filename || null; // ✅ safe even if no file uploaded
+  const { user_id, name } = req.user;
 
   try {
-    const result = await createReport({
+    let fileUrl = null;
+    const { url } = await uploadFile(req.file); // ✅ ambil url langsung
+    fileUrl = url;
+
+    const report = await createReport({
       title,
-      user_id: parseId,
-      filename,
+      user_id: parseInt(user_id),
+      fileUrl,
       description,
       category,
       owner_name: name,
@@ -26,10 +25,11 @@ const handleCreateReport = async (req, res, next) => {
     return res.status(200).json({
       status: true,
       message: "Success to create report",
-      data: result,
+      data: report,
     });
-  } catch (error) {
-    next(error);
+  } catch (err) {
+    console.error(err);
+    next(err);
   }
 };
 
