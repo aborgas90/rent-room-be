@@ -38,11 +38,6 @@ app.use(
   })
 );
 
-app.options("*", (req, res) => {
-  res.header("Access-Control-Allow-Origin", "https://ponirantkost.com");
-  res.header("Access-Control-Allow-Credentials", "true");
-  res.sendStatus(204);
-});
 app.use(express.json({ extended: true }));
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
