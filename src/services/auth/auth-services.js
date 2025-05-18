@@ -1,6 +1,6 @@
 const { ResponseError } = require("../../error/error-response");
 const prismaClient = require("../../prisma-client");
-const bcrypt = require("bcrypt");
+const bcrypt = require("bcryptjs");
 require("dotenv").config({ path: [".env"] });
 const jwt = require("jsonwebtoken");
 

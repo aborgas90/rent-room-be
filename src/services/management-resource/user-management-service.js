@@ -1,6 +1,6 @@
 const { ResponseError } = require("../../error/error-response");
 
-const bcrypt = require("bcrypt");
+const bcrypt = require("bcryptjs");
 const prismaClient = require("../../prisma-client");
 
 //Admin

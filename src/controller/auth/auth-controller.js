@@ -59,20 +59,21 @@ const handleLogin = async (req, res, next) => {
 
     const { token, User } = await authentication({ email, password });
 
-    res.cookie("token", token, {
-      httpOnly: false,
-      sameSite: "Lax", // or 'Strict' if needed
-      secure: false, // true if using HTTPS
-      maxAge: 24 * 60 * 60 * 1000,
-    });
-
-    //     res.cookie("token", token, {
-    //   httpOnly: true,
-    //   secure: true, // HARUS true karena frontend pakai HTTPS
-    //   sameSite: "None", // wajib kalau cross-origin supaya cookie terkirim
+    // res.cookie("token", token, {
+    //   httpOnly: false,
+    //   sameSite: "Lax", // or 'Strict' if needed
+    //   secure: false, // true if using HTTPS
     //   maxAge: 24 * 60 * 60 * 1000,
-    //   path: "/",
     // });
+
+    res.cookie("token", token, {
+      httpOnly: true,
+      secure: true, // HARUS true karena frontend pakai HTTPS
+      sameSite: "none", // wajib kalau cross-origin supaya cookie terkirim
+      maxAge: 24 * 60 * 60 * 1000,
+      path: "/",
+      domain: ".ponirantkost.com",
+    });
 
     return res.status(200).json({
       status: 200,
@@ -89,10 +90,10 @@ const handleLogin = async (req, res, next) => {
 
 const handleLogout = (req, res) => {
   res.clearCookie("token", {
-    httpOnly: false,
-    sameSite: "Lax",
-    secure: false,
-    path: "/",
+    httpOnly: true, // Selalu true untuk keamanan
+    secure: true, // WAJIB true di production (HTTPS)
+    sameSite: "None", // Diperlukan untuk cross-site
+    path: "/", // Pastikan path sama dengan saat set cookie
   });
 
   res.status(200).json({ message: "Logged out successfully" });

@@ -2,7 +2,7 @@ require("dotenv").config(); // Load .env before anything else
 const app = require("./app.js");
 const connectDatabase = require("./database/database.js");
 
-const port = process.env.APP_PORT; // fallback
+const port = process.env.APP_PORT || 8080; // fallback
 
 connectDatabase();
 

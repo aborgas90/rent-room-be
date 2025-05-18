@@ -16,8 +16,11 @@ require("./services/scheduler/paymentScheduler");
 
 const fs = require("fs");
 
-// 🟡 Ambil dari env, pecah kalau ada banyak origin (dipisahkan koma)
-const allowedOrigins = ["http://localhost:3000" || APP_FRONTEND_URL];
+const allowedOrigins = [
+  "https://www.ponirantkost.com",
+  "http://www.ponirantkost.com",
+  "http://localhost:3000",
+];
 
 app.use(
   cors({
@@ -29,11 +32,17 @@ app.use(
       }
     },
     credentials: true,
-    methods: ["GET", "POST", "PUT", "DELETE", "PATCH"],
+    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "Authorization"],
+    optionsSuccessStatus: 204,
   })
 );
 
-app.options("*", cors());
+app.options("*", (req, res) => {
+  res.header("Access-Control-Allow-Origin", "https://ponirantkost.com");
+  res.header("Access-Control-Allow-Credentials", "true");
+  res.sendStatus(204);
+});
 app.use(express.json({ extended: true }));
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());

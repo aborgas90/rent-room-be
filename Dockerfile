@@ -1,5 +1,5 @@
 # Use the official Node.js v22 Alpine image as the base image
-FROM node:22
+FROM node:22-alpine
 
 # Set the working directory inside the container
 WORKDIR /app
@@ -23,4 +23,4 @@ RUN npx prisma generate
 EXPOSE 8080
 
 # Jalankan entrypoint script yang akan migrasi dulu, baru start app
-CMD ["sh", "./docker-entrypoint.sh"]
+CMD ["sh", "-c", "npx prisma migrate deploy && npm run start"]

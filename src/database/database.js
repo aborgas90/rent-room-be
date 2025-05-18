@@ -1,6 +1,6 @@
 const { PrismaClient } = require("@prisma/client");
-const prisma = new PrismaClient();
 const dotenv = require("dotenv");
+const prisma = new PrismaClient();
 
 const connectDatabase = async () => {
   if (process.env.NODE_ENV === "test") {
