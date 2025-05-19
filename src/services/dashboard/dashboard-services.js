@@ -166,6 +166,9 @@ const getLast5Payments = async () => {
           },
         },
       },
+      where: {
+        status: "PAID",
+      },
     });
 
     return payments;

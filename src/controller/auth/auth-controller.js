@@ -72,7 +72,6 @@ const handleLogin = async (req, res, next) => {
       sameSite: "none", // wajib kalau cross-origin supaya cookie terkirim
       maxAge: 24 * 60 * 60 * 1000,
       path: "/",
-      domain: ".ponirantkost.com",
     });
 
     return res.status(200).json({

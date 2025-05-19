@@ -267,6 +267,7 @@ const getAllPayments = async ({
 const getAllTransaction = async ({ type, page = 1, limit = 10 }) => {
   try {
     const whereClause = type ? { type: type.toUpperCase() } : {};
+    console.log(whereClause, "WHERE")
 
     const total = await prismaClient.transaction.count({ where: whereClause });
 

@@ -15,10 +15,14 @@ const {
 require("./services/scheduler/paymentScheduler");
 
 const fs = require("fs");
+const jwt = require("jsonwebtoken");
+app.use(express.json({ extended: true }));
+app.use(express.urlencoded({ extended: true }));
+app.use(cookieParser());
 
 const allowedOrigins = [
-  "https://www.ponirantkost.com",
-  "http://www.ponirantkost.com",
+  "https://ponirantkost.com",
+  "http://ponirantkost.com",
   "http://localhost:3000",
 ];
 
@@ -38,9 +42,13 @@ app.use(
   })
 );
 
-app.use(express.json({ extended: true }));
-app.use(express.urlencoded({ extended: true }));
-app.use(cookieParser());
+app.get("/api/v1/auth/me", (req, res) => {
+  const token = req.cookies.token;
+  if (!token) return res.status(401).json({ message: "Unauthenticated" });
+
+  const decoded = jwt.verify(token, process.env.JWT_SECRET_KEY);
+  res.json({ user: decoded });
+});
 
 app.use(
   "/uploads/image",

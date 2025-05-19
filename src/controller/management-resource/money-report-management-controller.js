@@ -114,10 +114,10 @@ const handleGetExpenseReport = async (req, res, next) => {
 //buat yang udah bayar dan masukkan ke transasksi pemasukan
 const handleGetAllTransaction = async (req, res, next) => {
   try {
-    const { status, page, limit } = req.query;
+    const { type, page, limit } = req.query;
 
     const result = await getAllTransaction({
-      status,
+      type,
       page,
       limit,
     });
