@@ -4,6 +4,8 @@ const {
   authentication,
 } = require("../../services/auth/auth-services");
 
+const jwt = require("jsonwebtoken");
+
 const handleRegister = async (req, res, next) => {
   const { user_id, name, email, password, telephone, address } = req.body;
   try {
@@ -59,12 +61,20 @@ const handleLogin = async (req, res, next) => {
 
     const { token, User } = await authentication({ email, password });
 
-    // res.cookie("token", token, {
-    //   httpOnly: false,
-    //   sameSite: "Lax", // or 'Strict' if needed
-    //   secure: false, // true if using HTTPS
-    //   maxAge: 24 * 60 * 60 * 1000,
-    // });
+    const decoded = jwt.verify(token, process.env.JWT_SECRET_KEY);
+    const userData = {
+      user_id: decoded.user_id,
+      email: decoded.email,
+      name: decoded.name,
+      roles: decoded.roles,
+    };
+
+    res.cookie("userData", JSON.stringify(userData), {
+      httpOnly: false,
+      sameSite: "Lax", // or 'Strict' if needed
+      secure: false, // true if using HTTPS
+      maxAge: 24 * 60 * 60 * 1000,
+    });
 
     res.cookie("token", token, {
       httpOnly: true,
