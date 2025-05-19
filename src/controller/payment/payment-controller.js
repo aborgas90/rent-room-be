@@ -14,7 +14,6 @@ const handlerCreatePayment = async (req, res, next) => {
   try {
     const { user_id } = req.user;
     const { roomId, start_rent, end_rent } = req.body;
-    
 
     const payment = await createSnapPayment({
       user_id,
@@ -169,12 +168,12 @@ const handlerGetBookingStatus = async (req, res, next) => {
       });
     }
 
-    const bookingStatus = await getBookingStatus(room_id, user_id);
+    const result = await getBookingStatus(room_id, user_id);
 
     res.status(200).json({
       status: true,
       message: "Get Booking Status Successfully",
-      data: bookingStatus,
+      data: result,
     });
   } catch (error) {
     console.error("Error handlerGetBookingStatus: ", error);

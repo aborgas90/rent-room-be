@@ -460,7 +460,7 @@ const updateUserRoleRaw = async ({ user_id, roles_name }) => {
     }
 
     const result = await prismaClient.$executeRaw`
-        UPDATE User_Roles
+        UPDATE user_roles
         SET roles_id = ${role.roles_id}
         WHERE user_id = ${user_id};
       `;

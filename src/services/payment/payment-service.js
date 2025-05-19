@@ -379,18 +379,59 @@ const getRoomIdTransaction = async (roomId) => {
 };
 
 const getBookingStatus = async (room_id, user_id) => {
-  const result = await prismaClient.bookingRequest.findFirst({
-    where: {
-      room_id: parseInt(room_id, 10),
-      user_id: parseInt(user_id, 10),
-    },
-    orderBy: {
-      created_at: "desc",
-    },
+  const roomId = parseInt(room_id, 10);
+  const userId = parseInt(user_id, 10);
+
+  const booking = await prismaClient.bookingRequest.findFirst({
+    where: { room_id: roomId, user_id: userId },
+    orderBy: { created_at: "desc" },
   });
 
-  console.log(result, user_id, room_id, "result booking status");
-  return result?.status || "NOT_FOUND";
+  if (!booking) {
+    return {
+      status: "NOT_FOUND",
+      booking_status: null,
+      payment_status: null,
+    };
+  }
+
+  const payment = await prismaClient.payment.findFirst({
+    where: { user_id: userId },
+    orderBy: { createdAt: "desc" },
+  });
+
+  if (!payment) {
+    return {
+      status: "NO_PAYMENT",
+      booking_status: booking.status,
+      payment_status: null,
+    };
+  }
+
+  let status;
+
+  switch (payment.status) {
+    case "PAID":
+      status = booking.status === "APPROVED" ? "CONFIRMED" : booking.status;
+      break;
+    case "PENDING":
+      status = "AWAITING_PAYMENT";
+      break;
+    case "CANCELLED":
+    case "FAILED":
+    case "EXPIRED":
+      status = "PAYMENT_FAILED";
+      break;
+    default:
+      status = "UNKNOWN_STATUS";
+      break;
+  }
+
+  return {
+    status,
+    booking_status: booking.status,
+    payment_status: payment.status,
+  };
 };
 
 const hasPendingOrApprovedRequest = async (room_id, user_id) => {

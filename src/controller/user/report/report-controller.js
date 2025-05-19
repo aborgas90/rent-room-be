@@ -10,8 +10,10 @@ const handleCreateReport = async (req, res, next) => {
 
   try {
     let fileUrl = null;
-    const { url } = await uploadFile(req.file); // ✅ ambil url langsung
-    fileUrl = url;
+    if (req.file) {
+      const { url } = await uploadFile(req.file);
+      fileUrl = url;
+    }
 
     const report = await createReport({
       title,

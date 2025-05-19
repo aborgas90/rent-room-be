@@ -18,7 +18,7 @@ const requestBookRoomService = async (
 ) => {
   try {
     // 🔍 Cek apakah ada booking yang masih aktif
-    const existingRequest = await prismaClient.bookingRequest.findFirst({
+    const activeBooking = await prismaClient.bookingRequest.findFirst({
       where: {
         user_id,
         room_id,
@@ -26,12 +26,36 @@ const requestBookRoomService = async (
           in: ["PENDING_APPROVAL", "APPROVED"],
         },
       },
+      orderBy: {
+        created_at: "desc",
+      },
     });
 
-    if (existingRequest) {
-      throw new Error(
-        "Anda sudah memiliki permintaan booking aktif untuk kamar ini."
-      );
+    if (activeBooking) {
+      // cari payment terakhir untuk booking tersebut
+      const latestPayment = await prismaClient.payment.findFirst({
+        where: {
+          user_id,
+        },
+        orderBy: {
+          createdAt: "desc",
+        },
+      });
+
+      const paymentStatus = latestPayment?.status;
+
+      const isStillActive =
+        activeBooking.status === "PENDING_APPROVAL" ||
+        (activeBooking.status === "APPROVED" &&
+          paymentStatus !== "FAILED" &&
+          paymentStatus !== "EXPIRED" &&
+          paymentStatus !== "CANCELLED");
+
+      if (isStillActive) {
+        throw new Error(
+          "Anda sudah memiliki permintaan booking aktif untuk kamar ini."
+        );
+      }
     }
 
     // ✅ Lanjut buat booking baru
