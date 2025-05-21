@@ -16,6 +16,7 @@ require("./services/scheduler/paymentScheduler");
 
 const fs = require("fs");
 const jwt = require("jsonwebtoken");
+const multer = require("multer");
 app.use(express.json({ extended: true }));
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
@@ -60,6 +61,23 @@ apiRouter.use(publicRouter);
 apiRouter.use(managementApi);
 apiRouter.use(userApi);
 apiRouter.use(dashboardApi);
+app.use((err, req, res, next) => {
+  if (
+    err instanceof multer.MulterError ||
+    err.message.includes("File harus berupa")
+  ) {
+    return res.status(400).json({
+      status: false,
+      message: err.message,
+    });
+  }
+
+  // default error handler
+  return res.status(500).json({
+    status: false,
+    message: "Internal Server Error",
+  });
+});
 
 // ⬇️ Logging error
 const logErrorToFile = (context, err) => {

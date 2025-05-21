@@ -10,26 +10,49 @@ const createReport = async ({
   category,
   owner_name,
 }) => {
-  const Room = await prismaClient.room.findUnique({
-    where: { tenant_id: user_id },
-  });
+  try {
+    const Room = await prismaClient.room.findUnique({
+      where: { tenant_id: user_id },
+    });
 
-  const room_number = Room?.room_number || null;
+    const room_number = Room?.room_number || null;
 
-  const report = await prismaClient.problemReport.create({
-    data: {
-      title,
-      filename: fileUrl, // full GCS URL
-      description,
-      category,
-      user_id,
-      status: "PENDING",
-      owner_name,
-      room_number,
-    },
-  });
+    const report = await prismaClient.problemReport.create({
+      data: {
+        title,
+        filename: fileUrl, // full GCS URL
+        description,
+        category,
+        user_id,
+        status: "PENDING",
+        owner_name,
+        room_number,
+      },
+    });
 
-  return report;
+    // Send email notification to admin
+    try {
+      await sendEmail({
+        to: process.env.EMAIL_USER,
+        subject: "🚨 Pengaduan Baru",
+        html: complaintEmail({
+          userName: owner_name,
+          category: category,
+          description: description,
+          roomNumber: room_number,
+          filename: fileUrl,
+        }),
+      });
+      console.log("✅ Complaint email notification sent successfully");
+    } catch (emailError) {
+      console.error("❌ Failed to send complaint email:", emailError.message);
+    }
+
+    return report;
+  } catch (error) {
+    console.error("❌ Error creating report:", error);
+    throw error;
+  }
 };
 
 const getReportUser = async ({ user_id }) => {

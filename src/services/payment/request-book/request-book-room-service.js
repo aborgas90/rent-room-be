@@ -4,6 +4,9 @@ const {
   bookingRequestEmail,
 } = require("../../../utils/templates/bookingRequestEmail");
 const {
+  bookingDecisionEmail,
+} = require("../../../utils/templates/bookingDecisionEmail");
+const {
   sendBookingDecisionNotification,
 } = require("../../scheduler/paymentScheduler");
 const TwilioService = require("../../twilio-sending/twilio-services");
@@ -171,6 +174,24 @@ const actionApproveRequestBook = async (request, admin_id) => {
       end_rent: request.end_rent,
     });
 
+    // Get booking request with user and room details
+    const bookingWithDetails = await prismaClient.bookingRequest.findUnique({
+      where: { id: request.id },
+      include: {
+        user: {
+          select: {
+            name: true,
+            email: true,
+          },
+        },
+        room: {
+          select: {
+            room_number: true,
+          },
+        },
+      },
+    });
+
     await prismaClient.bookingRequest.update({
       where: { id: request.id },
       data: {
@@ -180,6 +201,29 @@ const actionApproveRequestBook = async (request, admin_id) => {
         payment_id: payment.payment_id,
       },
     });
+
+    // Send email notification
+    if (bookingWithDetails?.user?.email) {
+      try {
+        await sendEmail({
+          to: bookingWithDetails.user.email,
+          subject: "✅ Permintaan Booking Disetujui",
+          html: bookingDecisionEmail({
+            userName: bookingWithDetails.user.name,
+            roomNumber: bookingWithDetails.room.room_number,
+            startDate: request.start_rent.toLocaleString("id-ID", {
+              timeZone: "Asia/Jakarta",
+            }),
+            endDate: request.end_rent.toLocaleString("id-ID", {
+              timeZone: "Asia/Jakarta",
+            }),
+            isApproved: true,
+          }),
+        });
+      } catch (emailError) {
+        console.error("❌ Failed to send approval email:", emailError.message);
+      }
+    }
 
     return {
       message: "Request approved and payment link created",
@@ -215,8 +259,18 @@ const rejectBookingRequest = async ({ request_id, admin_id, notes }) => {
   const request = await prismaClient.bookingRequest.findUnique({
     where: { id: request_id },
     include: {
-      user: true,
-      room: true,
+      user: {
+        select: {
+          name: true,
+          email: true,
+          telephone: true,
+        },
+      },
+      room: {
+        select: {
+          room_number: true,
+        },
+      },
     },
   });
 
@@ -230,12 +284,11 @@ const rejectBookingRequest = async ({ request_id, admin_id, notes }) => {
       status: "REJECTED",
       rejected_at: new Date(),
       admin_id,
-      notes: notes || "Request rejected by admin.",
+      notes: notes || "Permintaan ditolak oleh admin.",
     },
   });
 
-  console.log("LOgg", request.user?.telephone, request.room?.room_number);
-
+  // Send WhatsApp notification
   if (request.user?.telephone && request.room?.room_number) {
     try {
       await sendBookingDecisionNotification(
@@ -245,7 +298,34 @@ const rejectBookingRequest = async ({ request_id, admin_id, notes }) => {
         notes
       );
     } catch (err) {
-      console.error("❌ Gagal kirim notifikasi penolakan:", err.message);
+      console.error(
+        "❌ Gagal kirim notifikasi penolakan WhatsApp:",
+        err.message
+      );
+    }
+  }
+
+  // Send email notification
+  if (request.user?.email) {
+    try {
+      await sendEmail({
+        to: request.user.email,
+        subject: "❌ Permintaan Booking Ditolak",
+        html: bookingDecisionEmail({
+          userName: request.user.name,
+          roomNumber: request.room.room_number,
+          startDate: request.start_rent.toLocaleString("id-ID", {
+            timeZone: "Asia/Jakarta",
+          }),
+          endDate: request.end_rent.toLocaleString("id-ID", {
+            timeZone: "Asia/Jakarta",
+          }),
+          isApproved: false,
+          notes: notes || "Permintaan ditolak oleh admin.",
+        }),
+      });
+    } catch (emailError) {
+      console.error("❌ Failed to send rejection email:", emailError.message);
     }
   }
 

@@ -367,13 +367,15 @@ const createUser = async ({
       throw new ResponseError(`Role "${roles_name}" not found!`);
     }
 
+    const formattedPhone = formatIndonesianPhone(telephone);
+
     const create = await prismaClient.user.create({
       data: {
         name,
         email,
         password: hashedPassword,
         nik,
-        telephone,
+        telephone: formattedPhone,
         address,
         User_Roles: {
           create: [
@@ -410,6 +412,18 @@ const createUser = async ({
     console.log("Error createAdmin:", error);
     throw error;
   }
+};
+
+const formatIndonesianPhone = (phone) => {
+  // ubah 08xxx → +628xxx
+  if (phone.startsWith("08")) {
+    return phone.replace(/^08/, "+628");
+  }
+  // jika sudah +62, biarkan
+  if (phone.startsWith("+62")) {
+    return phone;
+  }
+  return phone; // fallback (untuk debugging)
 };
 
 const updateUser = async ({
