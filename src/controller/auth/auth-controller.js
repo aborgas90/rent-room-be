@@ -5,6 +5,10 @@ const {
 } = require("../../services/auth/auth-services");
 
 const jwt = require("jsonwebtoken");
+const { sendEmail } = require("../../utils/emailSender");
+const { sendResetEmail } = require("../../utils/templates/forgotPasswordEmail");
+const bcrypt = require("bcryptjs");
+const { ResponseError } = require("../../error/error-response");
 
 const handleRegister = async (req, res, next) => {
   const { user_id, name, email, password, telephone, address } = req.body;
@@ -93,7 +97,18 @@ const handleLogin = async (req, res, next) => {
       },
     });
   } catch (error) {
-    next(error);
+    if (error instanceof ResponseError) {
+      return res.status(error.status).json({
+        status: false,
+        message: error.message,
+      });
+    }
+
+    console.error(error);
+    res.status(500).json({
+      status: false,
+      message: "Internal Server Error",
+    });
   }
 };
 
@@ -108,8 +123,65 @@ const handleLogout = (req, res) => {
   res.status(200).json({ message: "Logged out successfully" });
 };
 
+const handleForgetPassword = async (req, res, next) => {
+  try {
+    const { email } = req.body;
+    const user = await prismaClient.user.findUnique({ where: { email } });
+
+    if (!user)
+      return res
+        .status(400)
+        .json({ status: false, message: "Email tidak ditemukan" });
+
+    const token = jwt.sign(
+      { userId: user.user_id },
+      process.env.JWT_SECRET_KEY_PASS,
+      { expiresIn: "15m" }
+    );
+
+    const resetLink = `${process.env.APP_FRONTEND_URL}/reset-password?token=${token}`;
+    // const resetLink = `http://localhost:3000/reset-password?token=${token}`;
+
+    await sendEmail({
+      to: email,
+      subject: "📢 Permintaan Reset Password",
+      html: sendResetEmail({ resetLink }),
+    });
+
+    res.json({
+      status: true,
+      message: "Link reset password telah dikirim ke email Anda",
+    });
+  } catch (error) {
+    console.log(error);
+    next(error);
+  }
+};
+
+const handleResetPassword = async (req, res, next) => {
+  const { token, newPassword } = req.body;
+  try {
+    const { userId } = jwt.verify(token, process.env.JWT_SECRET_KEY_PASS);
+    const hashedPassword = await bcrypt.hash(newPassword, 10);
+
+    await prismaClient.user.update({
+      where: { user_id: userId },
+      data: { password: hashedPassword },
+    });
+
+    res.json({ message: "Password berhasil diubah" });
+  } catch (err) {
+    console.log(err);
+    res
+      .status(400)
+      .json({ message: "Token tidak valid atau sudah kedaluwarsa" });
+  }
+};
+
 module.exports = {
   handleRegister,
   handleLogin,
   handleLogout,
+  handleForgetPassword,
+  handleResetPassword,
 };

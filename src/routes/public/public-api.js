@@ -3,6 +3,8 @@ const {
   handleRegister,
   handleLogin,
   handleLogout,
+  handleForgetPassword,
+  handleResetPassword,
 } = require("../../controller/auth/auth-controller");
 const {
   handlerMidtransNotification,
@@ -16,6 +18,8 @@ const publicApi = express.Router();
 publicApi.post("/auth/register", handleRegister);
 publicApi.post("/auth/login", handleLogin);
 publicApi.post("/auth/logout", handleLogout);
+publicApi.post("/auth/forgot-password", handleForgetPassword);
+publicApi.post("/auth/reset-password", handleResetPassword);
 
 publicApi.post(
   "/payment/transaction-status/:orderId",
