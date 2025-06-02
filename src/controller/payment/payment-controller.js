@@ -184,7 +184,9 @@ const handlerGetBookingStatus = async (req, res, next) => {
 const handlerGetPaymentStatusLast = async (req, res, next) => {
   try {
     const { user_id } = req.user;
-    const result = await cekStatusPendingMidtransLast(parseInt(user_id, 10));
+    const result = await cekStatusPendingMidtransLast({
+      user_id: parseInt(user_id, 10),
+    });
 
     return res.status(200).json({
       status: true,

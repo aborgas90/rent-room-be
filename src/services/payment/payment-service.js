@@ -129,7 +129,30 @@ const createSnapPayment = async ({ user_id, roomId, start_rent, end_rent }) => {
   return result;
 };
 
-//get midtrans status data
+const mapMidtransStatusToEnum = (status) => {
+  switch (status.toLowerCase()) {
+    case "settlement":
+      return "PAID";
+    case "pending":
+      return "PENDING";
+    case "cancel":
+      return "CANCELLED";
+    case "expire":
+      return "EXPIRED";
+    case "deny":
+    case "failure":
+      return "FAILED";
+    case "refund":
+      return "REFUNDED";
+    case "challenge":
+      return "CHALLENGE";
+    case "capture":
+      return "PAID"; // jika pakai kartu kredit & 3DS
+    default:
+      throw new Error(`Status Midtrans '${status}' tidak dikenali.`);
+  }
+};
+
 const getTransactionStatusOrderId = async ({ order_id }) => {
   try {
     const payment = await prismaClient.payment.findFirst({
@@ -142,11 +165,14 @@ const getTransactionStatusOrderId = async ({ order_id }) => {
 
     const statusResponse = await coreApi.transaction.status(order_id);
 
-    // ✅ Update DB agar sinkron
+    const mappedStatus = mapMidtransStatusToEnum(
+      statusResponse.transaction_status
+    );
+
     await prismaClient.payment.update({
       where: { midtrans_order_id: order_id },
       data: {
-        status: statusResponse.transaction_status.toUpperCase(),
+        status: mappedStatus,
         settlementTime: statusResponse.settlement_time
           ? new Date(statusResponse.settlement_time)
           : undefined,

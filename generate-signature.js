@@ -1,8 +1,8 @@
 const crypto = require("crypto");
 require("dotenv").config();
-const order_id = "INV-1744714778079-1";
+const order_id = "INV-1748288466622-8";
 const status_code = "200";
-const gross_amount = "2500000.00"; // string, jangan number
+const gross_amount = "15000.00"; // string, jangan number
 const serverKey = process.env.MIDTRANS_SERVER_KEY; // ganti dengan punya kamu
 console.log("serverKey: ", serverKey);
 const raw = order_id + status_code + gross_amount + serverKey;
