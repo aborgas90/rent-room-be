@@ -29,6 +29,26 @@ const authentication = async ({ email, password }) => {
       },
     });
 
+    const getStatusRent = await prismaClient.payment.findFirst({
+      where: {
+        user_id: User.user_id,
+        status: "PAID", // jika kamu punya status, opsional
+      },
+      orderBy: {
+        end_rent: "desc",
+      },
+      select: {
+        end_rent: true,
+        room: {
+          select: {
+            room_id: true,
+            room_number: true,
+          },
+        },
+      },
+    });
+    console.log("getStatusRent:", getStatusRent);
+
     if (!User) {
       throw new ResponseError(401, "User Not Found");
     }
@@ -45,6 +65,8 @@ const authentication = async ({ email, password }) => {
         email: User.email,
         telephone: User.telephone,
         roles: User.User_Roles[0].Role.roles_name,
+        end_rent: getStatusRent?.end_rent ?? null,
+        room_number: getStatusRent?.room?.room_number ?? null,
       },
       process.env.JWT_SECRET_KEY,
       {
@@ -61,6 +83,7 @@ const authentication = async ({ email, password }) => {
     return {
       token,
       User,
+      getStatusRent
     };
   } catch (error) {
     throw error;
