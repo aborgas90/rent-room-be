@@ -8,7 +8,7 @@ const connectDatabase = async () => {
   } else if (process.env.NODE_ENV === "development") {
     dotenv.config({ path: "./.env" });
   } else {
-    dotenv.config({ path: "./.env.production" });
+    dotenv.config({ path: "./.env.production" }); 
   }
   try {
     await prisma.$connect();
